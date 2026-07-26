@@ -1,0 +1,243 @@
+/* ── Container ──────────────────────────────────────────────────────────── */
+.siri-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.voice-reactive-wrapper {
+  transition: transform 0.08s linear, filter 0.08s linear;
+  will-change: transform, filter;
+}
+
+/* ── Base orb ───────────────────────────────────────────────────────────── */
+.siri-orb {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── Glow layers ────────────────────────────────────────────────────────── */
+.orb-layer {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.65;
+  filter: blur(16px);
+  transition: opacity 0.3s ease;
+}
+
+.layer1 { background: radial-gradient(circle, rgba(var(--c1), 0.55), transparent 70%); }
+.layer2 { background: radial-gradient(circle, rgba(var(--c2), 0.45), transparent 70%); transform: scale(1.18); }
+.layer3 { background: radial-gradient(circle, rgba(var(--c3), 0.38), transparent 70%); transform: scale(1.35); }
+
+/* ── Core ───────────────────────────────────────────────────────────────── */
+.orb-core {
+  position: relative;
+  width: 95px;
+  height: 95px;
+  border-radius: 50%;
+  overflow: hidden;
+  backdrop-filter: blur(24px);
+  background: radial-gradient(
+    circle,
+    rgba(255,255,255,0.98) 0%,
+    rgba(var(--c1), 0.95) 25%,
+    rgba(var(--c2), 0.88) 55%,
+    rgba(var(--c3), 0.75) 85%,
+    rgba(0,0,0,0) 100%
+  );
+  box-shadow:
+    0 0 25px rgba(var(--c1), 0.7),
+    0 0 60px rgba(var(--c2), 0.55),
+    0 0 120px rgba(var(--c3), 0.45);
+  transition: box-shadow 0.4s ease;
+}
+
+.core-inner {
+  position: absolute;
+  width: 140%;
+  height: 140%;
+  top: -20%;
+  left: -20%;
+  border-radius: 42%;
+  background: radial-gradient(circle, rgba(255,255,255,0.2), transparent 70%);
+  mix-blend-mode: screen;
+  animation: rotateEnergy 8s linear infinite;
+}
+
+/* ── Canvas overlay (listening bars / thinking dots / speaking waves) ──── */
+.orb-canvas-overlay {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 360px;
+  height: 360px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   IDLE — Same as your active/speaking state that looked good.
+   Big ripples expanding outward continuously, bright and alive.
+   ════════════════════════════════════════════════════════════════════════ */
+.orb-idle .layer1 { animation: ripple1 2.4s ease-out infinite; }
+.orb-idle .layer2 { animation: ripple2 2.4s ease-out infinite 0.35s; }
+.orb-idle .layer3 { animation: ripple3 2.4s ease-out infinite 0.7s; }
+.orb-idle .core-inner { animation: rotateEnergy 8s linear infinite; }
+.orb-idle .orb-core {
+  animation: idleCorePulse 3s ease-in-out infinite;
+}
+
+@keyframes idleCorePulse {
+  0%, 100% { box-shadow: 0 0 25px rgba(var(--c1),0.55), 0 0 60px rgba(var(--c2),0.4), 0 0 100px rgba(var(--c3),0.3); }
+  50%       { box-shadow: 0 0 35px rgba(var(--c1),0.75), 0 0 80px rgba(var(--c2),0.6), 0 0 140px rgba(var(--c3),0.45); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   WAKE — Flash burst: bright explosion then settles.
+   Layers fire outward fast and hard, core flashes white.
+   Canvas adds expanding ring pulses on top.
+   ════════════════════════════════════════════════════════════════════════ */
+.orb-wake { animation: wakeExpand 0.45s cubic-bezier(0.22,1,0.36,1) forwards; }
+.orb-wake .layer1 { animation: wakeLayer1 0.9s ease-out infinite; }
+.orb-wake .layer2 { animation: wakeLayer2 0.9s ease-out infinite 0.15s; }
+.orb-wake .layer3 { animation: wakeLayer3 0.9s ease-out infinite 0.3s; }
+.orb-wake .orb-core { animation: wakeCore 0.45s ease-out forwards; }
+.orb-wake .core-inner { animation: rotateEnergy 2s linear infinite; }
+
+@keyframes wakeExpand {
+  0%   { transform: scale(0.85); }
+  55%  { transform: scale(1.18); }
+  100% { transform: scale(1.0); }
+}
+@keyframes wakeCore {
+  0%   { filter: brightness(1); }
+  35%  { filter: brightness(2.8); }
+  100% { filter: brightness(1); }
+}
+@keyframes wakeLayer1 {
+  0%   { transform: scale(1);    opacity: 0.9; }
+  100% { transform: scale(2.4);  opacity: 0; }
+}
+@keyframes wakeLayer2 {
+  0%   { transform: scale(1.18); opacity: 0.75; }
+  100% { transform: scale(2.9);  opacity: 0; }
+}
+@keyframes wakeLayer3 {
+  0%   { transform: scale(1.35); opacity: 0.55; }
+  100% { transform: scale(3.5);  opacity: 0; }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   LISTENING — Active ripples (your good-looking state) + canvas mic bars.
+   Layers ripple continuously. Canvas draws 24 EQ bars around the orb.
+   ════════════════════════════════════════════════════════════════════════ */
+.orb-listening { animation: breatheFast 2s ease-in-out infinite; }
+.orb-listening .layer1 { animation: ripple1 1.8s linear infinite; }
+.orb-listening .layer2 { animation: ripple2 1.8s linear infinite 0.2s; }
+.orb-listening .layer3 { animation: ripple3 1.8s linear infinite 0.4s; }
+.orb-listening .core-inner { animation: rotateEnergy 3s linear infinite; }
+.orb-listening .orb-core {
+  animation: listenCorePulse 1.8s ease-in-out infinite;
+}
+
+@keyframes listenCorePulse {
+  0%, 100% { box-shadow: 0 0 25px rgba(var(--c1),0.7), 0 0 60px rgba(var(--c2),0.55), 0 0 120px rgba(var(--c3),0.45); }
+  50%       { box-shadow: 0 0 40px rgba(var(--c1),1.0), 0 0 90px rgba(var(--c2),0.8),  0 0 180px rgba(var(--c3),0.6); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   THINKING — Layers rotate slowly. Canvas draws orbiting dots with trails.
+   Distinct from listening — no bars, no ripples, orbital motion.
+   ════════════════════════════════════════════════════════════════════════ */
+.orb-thinking { animation: thinkingPulse 2.5s ease-in-out infinite; }
+.orb-thinking .layer1 { animation: none; opacity: 0.28; }
+.orb-thinking .layer2 { animation: orbitLayer 3.5s linear infinite; }
+.orb-thinking .layer3 { animation: orbitLayer 3.5s linear infinite reverse; }
+.orb-thinking .core-inner { animation: rotateEnergy 1.8s linear infinite; }
+
+.thinking-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-top-color: rgba(var(--c1), 0.8);
+  animation: spinRing 1.2s linear infinite;
+}
+
+@keyframes thinkingPulse {
+  0%, 100% { transform: scale(1);    filter: brightness(0.88); }
+  50%       { transform: scale(1.04); filter: brightness(1.25); }
+}
+@keyframes orbitLayer {
+  0%   { transform: scale(1.18) rotate(0deg); }
+  100% { transform: scale(1.18) rotate(360deg); }
+}
+@keyframes spinRing {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+   SPEAKING — Active ripples (like your good state) + canvas voice waves.
+   More intense than idle. Canvas adds left/right audio waveform lines.
+   ════════════════════════════════════════════════════════════════════════ */
+.orb-speaking { animation: speakingBreath 1.4s ease-in-out infinite; }
+.orb-speaking .layer1 { animation: speakRipple1 1.4s ease-out infinite; }
+.orb-speaking .layer2 { animation: speakRipple2 1.4s ease-out infinite 0.22s; }
+.orb-speaking .layer3 { animation: speakRipple3 1.4s ease-out infinite 0.44s; }
+.orb-speaking .core-inner { animation: rotateEnergy 2s linear infinite; }
+.orb-speaking .orb-core {
+  animation: speakCorePulse 1.4s ease-in-out infinite;
+}
+
+@keyframes speakCorePulse {
+  0%, 100% { box-shadow: 0 0 30px rgba(var(--c1),0.75), 0 0 70px rgba(var(--c2),0.6), 0 0 130px rgba(var(--c3),0.5); }
+  35%       { box-shadow: 0 0 50px rgba(var(--c1),1.0),  0 0 110px rgba(var(--c2),0.9), 0 0 200px rgba(var(--c3),0.7); }
+}
+
+@keyframes speakingBreath {
+  0%, 100% { transform: scale(1); }
+  30%       { transform: scale(1.1); }
+  70%       { transform: scale(1.05); }
+}
+
+/* ── Shared ripple keyframes ─────────────────────────────────────────────── */
+@keyframes breatheFast {
+  0%, 100% { transform: scale(1); }
+  50%       { transform: scale(1.07); }
+}
+
+@keyframes ripple1 {
+  0%   { transform: scale(1);    opacity: 0.75; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+@keyframes ripple2 {
+  0%   { transform: scale(1.18); opacity: 0.6; }
+  100% { transform: scale(1.45); opacity: 0; }
+}
+@keyframes ripple3 {
+  0%   { transform: scale(1.35); opacity: 0.45; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+@keyframes speakRipple1 {
+  0%   { transform: scale(1);    opacity: 0.9; }
+  100% { transform: scale(1.42); opacity: 0; }
+}
+@keyframes speakRipple2 {
+  0%   { transform: scale(1.18); opacity: 0.72; }
+  100% { transform: scale(1.68); opacity: 0; }
+}
+@keyframes speakRipple3 {
+  0%   { transform: scale(1.35); opacity: 0.55; }
+  100% { transform: scale(1.95); opacity: 0; }
+}
+@keyframes rotateEnergy {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
