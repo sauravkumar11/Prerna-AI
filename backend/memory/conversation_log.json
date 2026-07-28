@@ -1,46 +1,6 @@
 [
   {
     "role": "user",
-    "content": "Open YouTube and play Dilbar song.",
-    "time": "2026-07-21T20:50:53.740987"
-  },
-  {
-    "role": "assistant",
-    "content": "[CALM] Saurav, I couldn't reach any configured Gemini model or key right now. Please check your .env GEMINI_API_KEY / GEMINI_MODEL settings, or try again in a minute.",
-    "time": "2026-07-21T20:50:57.408429"
-  },
-  {
-    "role": "user",
-    "content": "Open WhatsApp.",
-    "time": "2026-07-21T21:28:43.274308"
-  },
-  {
-    "role": "assistant",
-    "content": "[CALM] Saurav, I couldn't reach any configured Gemini model or key right now. Please check your .env GEMINI_API_KEY / GEMINI_MODEL settings, or try again in a minute.",
-    "time": "2026-07-21T21:28:46.966600"
-  },
-  {
-    "role": "user",
-    "content": "Open WhatsApp.",
-    "time": "2026-07-21T21:35:20.401132"
-  },
-  {
-    "role": "assistant",
-    "content": "[CALM] WhatsApp is open.",
-    "time": "2026-07-21T21:35:22.450618"
-  },
-  {
-    "role": "user",
-    "content": "Open WhatsApp and drop a message to Prerna Goodnight.",
-    "time": "2026-07-21T21:45:05.201560"
-  },
-  {
-    "role": "assistant",
-    "content": "[CALM] Saurav, I couldn't reach any configured Gemini model or key right now. Please check your .env GEMINI_API_KEY / GEMINI_MODEL settings, or try again in a minute.",
-    "time": "2026-07-21T21:45:09.828305"
-  },
-  {
-    "role": "user",
     "content": "Open WhatsApp.",
     "time": "2026-07-21T21:45:39.334206"
   },
@@ -998,5 +958,45 @@
     "role": "assistant",
     "content": "[CALM] Saurav, I couldn't reach any configured Gemini model or key right now. Should recover in about 50s — try again shortly.",
     "time": "2026-07-26T06:37:08.518445"
+  },
+  {
+    "role": "user",
+    "content": "Turn on Bluetooth.",
+    "time": "2026-07-28T20:52:43.390384"
+  },
+  {
+    "role": "assistant",
+    "content": "[CALM] Turned Bluetooth on.",
+    "time": "2026-07-28T20:52:52.739537"
+  },
+  {
+    "role": "user",
+    "content": "Connect to. One plus node.",
+    "time": "2026-07-28T20:53:12.123568"
+  },
+  {
+    "role": "assistant",
+    "content": "[PLAYFUL]\nI don't have a way to connect Bluetooth devices directly yet — connect your OnePlus Nord manually for now!",
+    "time": "2026-07-28T20:53:16.389999"
+  },
+  {
+    "role": "user",
+    "content": "Open YouTube and and play Yadasavi.",
+    "time": "2026-07-28T20:53:41.594567"
+  },
+  {
+    "role": "assistant",
+    "content": "[CALM] Opening https://www.youtube.com/results?search_query=Yadasavi.",
+    "time": "2026-07-28T20:54:08.460872"
+  },
+  {
+    "role": "user",
+    "content": "Play Sayyada song.",
+    "time": "2026-07-28T20:54:35.027498"
+  },
+  {
+    "role": "assistant",
+    "content": "[CALM] Playing \"Saiyaara Full Song | Ahaan Panday, Aneet Padda | Tanishk Bagchi, Faheem A, Arslan N | Irshad Kamil\" on YouTube.",
+    "time": "2026-07-28T20:54:52.054031"
   }
 ]
