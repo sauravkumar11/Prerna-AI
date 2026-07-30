@@ -219,20 +219,27 @@ def _selenium_play_first(query: str) -> ToolResult:
 def _url_fallback(query: str, reason: str | None = None) -> ToolResult:
     url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
 
-    # Open in Chrome specifically — webbrowser.open() defers to the OS
-    # default browser, which on this machine is Microsoft Edge, not
-    # Chrome. That silently broke the fallback: the search would open in
-    # Edge, a browser this tool never automates, so nothing would ever
-    # auto-play from it. Launching chrome.exe directly with the URL
-    # guarantees it at least lands in the right browser, even on the path
-    # where full automation isn't available this time.
-    from tools.chrome_session import _find_chrome_exe
-    chrome_exe = _find_chrome_exe()
-    if chrome_exe:
+    # Open in the detected automation browser (Chrome or Edge) specifically
+    # — webbrowser.open() defers to the OS default browser, which isn't
+    # necessarily the one this tool automates. That silently broke the
+    # fallback before: the search would open in an un-automated browser,
+    # so nothing would ever auto-play from it. Launching the detected
+    # engine's exe directly with the URL guarantees it at least lands in
+    # the right browser, even on the path where full automation isn't
+    # available this time.
+    #
+    # NOTE: chrome_session.py no longer has a standalone _find_chrome_exe()
+    # — since the multi-engine (Chrome/Edge) rewrite, engine detection
+    # returns a dict via _find_engine(); this fallback previously imported
+    # the removed function directly and crashed with an ImportError,
+    # confirmed via a real production log.
+    from tools.chrome_session import _find_engine
+    engine = _find_engine()
+    if engine:
         try:
-            subprocess.Popen([chrome_exe, url])
+            subprocess.Popen([engine["exe_path"], url])
         except Exception as exc:
-            logger.warning("Couldn't launch Chrome directly (%s) — falling back to OS default browser.", exc)
+            logger.warning("Couldn't launch %s directly (%s) — falling back to OS default browser.", engine["display_name"], exc)
             webbrowser.open(url)
     else:
         webbrowser.open(url)
