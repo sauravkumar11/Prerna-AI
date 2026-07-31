@@ -44,6 +44,14 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 
+# ===========================
+# Runtime AI Memory
+# ===========================
+backend/memory/activity_log.json
+backend/memory/conversation_log.json
+backend/memory/memory.json
+backend/memory/mood_state.json
+
 # ==================================================
 # Vite
 # ==================================================
