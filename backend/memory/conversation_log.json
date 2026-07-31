@@ -1,16 +1,6 @@
 [
   {
     "role": "user",
-    "content": "Open WhatsApp.",
-    "time": "2026-07-21T21:45:39.334206"
-  },
-  {
-    "role": "assistant",
-    "content": "[CALM] Saurav, I couldn't reach any configured Gemini model or key right now. Please check your .env GEMINI_API_KEY / GEMINI_MODEL settings, or try again in a minute.",
-    "time": "2026-07-21T21:45:42.924857"
-  },
-  {
-    "role": "user",
     "content": "Kaisi Ho.",
     "time": "2026-07-23T07:49:02.484841"
   },
@@ -998,5 +988,15 @@
     "role": "assistant",
     "content": "[CALM] Playing \"Saiyaara Full Song | Ahaan Panday, Aneet Padda | Tanishk Bagchi, Faheem A, Arslan N | Irshad Kamil\" on YouTube.",
     "time": "2026-07-28T20:54:52.054031"
+  },
+  {
+    "role": "user",
+    "content": "Open YouTube and play Tere Nakhre yeh sehanda hai.",
+    "time": "2026-07-30T07:10:24.750656"
+  },
+  {
+    "role": "assistant",
+    "content": "[CALM] Playing \"Tere Nakhre Ye Sahnda Hai Jo Lak Tera Hilda Rahnda Hai | Shrey | Directorgifty |\" on YouTube.",
+    "time": "2026-07-30T07:11:00.836475"
   }
 ]

@@ -39,12 +39,43 @@ class ToolResult:
     every featured artist, or "Screenshot saved." instead of reading a full
     Windows file path aloud. When omitted, `message` is used for speech too
     (existing behaviour, fully backward compatible).
+
+    v1.1.2: fields are validated at construction time (see __post_init__).
+    This is deliberate, not incidental — a real production bug shipped
+    when a tool's underlying action function was changed to return
+    `(success, message)` tuples, but its wrapper still did
+    `ToolResult(True, some_tuple)`, passing the whole tuple as `message`.
+    That crashed deep inside execute_plan()'s `" ".join(messages)` with a
+    confusing generic TypeError, several call frames away from the actual
+    mistake. Every tool handler already runs inside registry.safe()'s
+    try/except, which converts ANY exception (including one raised here)
+    into a graceful failed ToolResult — so this validation can only turn
+    an eventual confusing crash into an immediate, clear, still-gracefully-
+    handled one. It cannot introduce a new failure mode.
     """
 
     success: bool
     message: str
     data: Optional[Any] = None
     speech: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.success, bool):
+            raise TypeError(
+                f"ToolResult.success must be a bool, got {type(self.success).__name__}: {self.success!r}. "
+                "A tool handler likely passed something other than True/False directly."
+            )
+        if not isinstance(self.message, str):
+            raise TypeError(
+                f"ToolResult.message must be a str, got {type(self.message).__name__}: {self.message!r}. "
+                "A tool's underlying action function likely returns a (success, message) tuple now, "
+                "and its ToolResult-building wrapper needs to unpack it instead of passing it through whole "
+                "(this is exactly the whatsapp_tool.py bug from docs/CHANGELOG.md — check for the same pattern here)."
+            )
+        if self.speech is not None and not isinstance(self.speech, str):
+            raise TypeError(
+                f"ToolResult.speech must be a str or None, got {type(self.speech).__name__}: {self.speech!r}."
+            )
 
     def __str__(self) -> str:  # convenient for f-strings / legacy callers
         return self.message
@@ -57,10 +88,8 @@ class ToolAction:
     description: str = ""
     required_args: List[str] = field(default_factory=list)
     dangerous: bool = False  # requires user confirmation (delete/shutdown/etc.)
-    verify: Optional[Callable[[Dict[str, Any], Any], Optional[bool]]] = None
-    max_retries: int = 0  # only meaningful when `verify` is set
-
-
+    verify: Optional[Callable] = None
+    max_retries: int = 0
 @dataclass
 class Tool:
     name: str
@@ -106,35 +135,27 @@ def action(
     required_args: Optional[List[str]] = None,
     dangerous: bool = False,
     tool_description: str = "",
-    verify: Optional[Callable[[Dict[str, Any], Any], Optional[bool]]] = None,
+
+    # NEW
+    verify: Optional[Callable] = None,
     max_retries: int = 0,
 ):
-    """Decorator that registers a function as an action on a tool.
-
-    `verify` is optional: a function of (args, result) -> True/False/None,
-    typically built from agent.verification.process_running(...) or
-    window_title_contains(...). When set, the executor re-checks that the
-    action actually happened (not just that the handler returned success)
-    and retries up to `max_retries` times if the check comes back False.
-    Actions without a `verify` behave exactly as before — this is additive.
-
-    Example:
-        @action("system", "lock", "Lock the computer")
-        def lock():
-            ...
-            return ToolResult(True, "Locking your laptop.")
-
-        @action("camera", "open", "Open the Camera app.",
-                verify=window_title_contains("camera"), max_retries=1)
-        def open_camera():
-            ...
+    """
+    Register a tool action.
     """
 
     def decorator(func: Callable) -> Callable:
+
         wrapped = safe(func)
-        tool = _REGISTRY.setdefault(tool_name, Tool(name=tool_name))
+
+        tool = _REGISTRY.setdefault(
+            tool_name,
+            Tool(name=tool_name),
+        )
+
         if tool_description and not tool.description:
             tool.description = tool_description
+
         tool.add_action(
             ToolAction(
                 name=action_name,
@@ -142,10 +163,12 @@ def action(
                 description=description,
                 required_args=required_args or [],
                 dangerous=dangerous,
+
                 verify=verify,
                 max_retries=max_retries,
             )
         )
+
         return wrapped
 
     return decorator

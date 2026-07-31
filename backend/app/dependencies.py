@@ -157,6 +157,23 @@ class GeminiKeyManager:
         with self._lock:
             self._cooldown_until[pair] = time.time() + seconds
 
+    def _bump_failure_streak(self, model_idx: int) -> None:
+        """v1.1.2 fix: this read-modify-write was previously unlocked,
+        while its sibling _cooldown_until mutation (_mark_cooldown above)
+        already was. Since /chat is a sync route running in Starlette's
+        thread pool, concurrent requests genuinely execute on different
+        OS threads — an unlocked `dict.get(k, 0) + 1` read-then-write can
+        race and undercount a genuine failure streak. Low real-world
+        impact (worst case: a slightly-stale streak, not a crash), but a
+        real correctness gap now closed with the same lock already used
+        for cooldown tracking."""
+        with self._lock:
+            self._model_failure_streak[model_idx] = self._model_failure_streak.get(model_idx, 0) + 1
+
+    def _reset_failure_streak(self, model_idx: int) -> None:
+        with self._lock:
+            self._model_failure_streak[model_idx] = 0
+
     def _earliest_available_in(self) -> float:
         """Seconds until the soonest (model, key) pair becomes live again —
         used only to give an honest wait estimate in the fallback message."""
@@ -192,7 +209,7 @@ class GeminiKeyManager:
             # correctly counts as "fully failed" for this call, not just
             # the ones that made an actual network attempt.
             if last_model_idx is not None and model_idx != last_model_idx:
-                self._model_failure_streak[last_model_idx] = self._model_failure_streak.get(last_model_idx, 0) + 1
+                self._bump_failure_streak(last_model_idx)
             last_model_idx = model_idx
 
             # Re-check against CURRENT cooldown state, not just the
@@ -218,7 +235,7 @@ class GeminiKeyManager:
                 # Success — this model is clearly working again; drop any
                 # accumulated deprioritization immediately rather than
                 # waiting for it to decay.
-                self._model_failure_streak[model_idx] = 0
+                self._reset_failure_streak(model_idx)
                 return result
 
             except Exception as exc:
@@ -261,7 +278,7 @@ class GeminiKeyManager:
         # attempted never had its transition-out increment applied (there
         # was no "next" model to trigger it) — finalize it here.
         if last_model_idx is not None:
-            self._model_failure_streak[last_model_idx] = self._model_failure_streak.get(last_model_idx, 0) + 1
+            self._bump_failure_streak(last_model_idx)
 
         wait_s = int(self._earliest_available_in())
         logger.error("Exhausted every available Gemini (model, key) pair this call.")

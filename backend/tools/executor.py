@@ -27,6 +27,7 @@ from agent.reasoning import reason
 from agent.registry import ToolResult, call_handler
 from agent.validation import validate
 from agent.verification import run_with_verification
+from agent import session
 from memory.memory_manager import log_activity
 
 
@@ -46,8 +47,18 @@ def execute_step(step: Dict[str, Any], confirmed: bool = False) -> ToolResult:
 
     validation = validate(tool_action, args, confirmed)
     if not validation.ok:
-        data = {"requires_confirmation": True, "tool": outcome.tool_name, "action": outcome.action_name} \
+        data = (
+            {
+                "requires_confirmation": True,
+                "tool": outcome.tool_name,
+                "action": outcome.action_name,
+                # The exact step that needs confirming — lets the confirmed
+                # retry re-execute THIS directly instead of re-invoking the
+                # (non-deterministic) planner on the same text a second time.
+                "step": step,
+            }
             if validation.needs_confirmation else None
+        )
         return ToolResult(False, validation.error_message or "I couldn't do that.", data=data)
 
     result, verified = run_with_verification(
@@ -74,6 +85,8 @@ def execute_step(step: Dict[str, Any], confirmed: bool = False) -> ToolResult:
         details=result.message,
     )
 
+    session.update_from_action(outcome.tool_name, outcome.action_name, args, result)
+
     return result
 
 
@@ -96,6 +109,16 @@ def execute_plan(steps: List[Dict[str, Any]], confirmed: bool = False) -> ToolRe
     messages: List[str] = []
     executed: List[Tuple[str, bool]] = []
 
+    real_steps = [s for s in steps if s.get("tool") != "chat"]
+    is_multi_step = len(real_steps) > 1
+
+    task_description = " then ".join(
+        f"{s.get('tool')}.{(s.get('args') or {}).get('action', '')}".rstrip(".")
+        for s in real_steps
+    ) or "task"
+    if is_multi_step:
+        session.start_task(task_description, step_count=len(real_steps))
+
     for step in steps:
         if step.get("tool") == "chat":
             continue  # a stray chat step mixed into a multi-step plan; skip it
@@ -114,13 +137,22 @@ def execute_plan(steps: List[Dict[str, Any]], confirmed: bool = False) -> ToolRe
         if not result.success:
             break  # don't keep running steps after one has failed
 
+    overall_success = all(ok for _, ok in executed) if executed else True
+    if is_multi_step:
+        session.finish_task(task_description, success=overall_success)
+
     if not messages:
         return ToolResult(True, "", data={"is_chat": True})
 
-    overall_success = all(ok for _, ok in executed)
-
     return ToolResult(
         success=overall_success,
-        message=" ".join(messages),
+        # ToolResult.__post_init__ now guarantees every result.message
+        # appended above is already a real str — this str() coercion is
+        # deliberate defense-in-depth on top of that, not a replacement
+        # for it: it's what keeps this specific join from ever crashing
+        # even if something upstream bypasses normal ToolResult
+        # construction. Cheap insurance against the exact bug class this
+        # code already has direct field experience with.
+        message=" ".join(str(m) for m in messages),
         data={"steps": executed},
     )
