@@ -146,6 +146,13 @@ def execute_plan(steps: List[Dict[str, Any]], confirmed: bool = False) -> ToolRe
 
     return ToolResult(
         success=overall_success,
-        message=" ".join(messages),
+        # ToolResult.__post_init__ now guarantees every result.message
+        # appended above is already a real str — this str() coercion is
+        # deliberate defense-in-depth on top of that, not a replacement
+        # for it: it's what keeps this specific join from ever crashing
+        # even if something upstream bypasses normal ToolResult
+        # construction. Cheap insurance against the exact bug class this
+        # code already has direct field experience with.
+        message=" ".join(str(m) for m in messages),
         data={"steps": executed},
     )
