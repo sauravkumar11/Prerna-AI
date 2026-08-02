@@ -242,3 +242,52 @@ def test_exhausted_response_mentions_wait_time_when_known():
 def test_exhausted_response_gives_env_hint_when_wait_unknown():
     response = deps.GeminiKeyManager._exhausted_response(0)
     assert ".env" in response.text
+
+
+def test_model_failure_streak_thread_safe_under_real_concurrency():
+    """v1.1.2 fix: _model_failure_streak's read-modify-write increments
+    were previously unlocked, unlike its sibling _cooldown_until (which
+    already used self._lock). Since /chat is a sync FastAPI route,
+    Starlette runs it in a thread pool — concurrent requests genuinely
+    execute on different OS threads, not just interleaved coroutines.
+
+    This test uses REAL threading.Thread workers (not asyncio, not
+    sequential calls) to actually exercise the race: N threads each
+    trigger 3 increments (one per model, since all 3 models fail on
+    every call in this scenario). Without the lock, some increments would
+    be lost to a classic read-then-write race. With it, the final count
+    must be EXACTLY N per model — no lost updates."""
+    import threading
+
+    class _AlwaysFailClient:
+        def __init__(self, api_key=None):
+            self.api_key = api_key
+            self.models = self
+        def generate_content(self, model, contents, config):
+            raise _FakeError("429 RESOURCE_EXHAUSTED quota", code=429)
+
+    with mock.patch.object(deps.genai, "Client", _AlwaysFailClient):
+        mgr = deps.GeminiKeyManager(["k0"], "gemini-2.5-flash")
+
+        N_THREADS = 20
+
+        def worker():
+            mgr._cooldown_until.clear()
+            mgr.generate_content("concurrent test")
+
+        threads = [threading.Thread(target=worker) for _ in range(N_THREADS)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Every model index attempted (all 3, since every call fails on
+        # all of them) must show EXACTLY N_THREADS — any lost update from
+        # an unlocked race would show up as a count strictly less than
+        # N_THREADS on at least one key.
+        assert len(mgr._model_failure_streak) == len(mgr._models)
+        for model_idx, count in mgr._model_failure_streak.items():
+            assert count == N_THREADS, (
+                f"model index {model_idx} has count {count}, expected exactly {N_THREADS} "
+                "— a lower count means a lost update from an unprotected race"
+            )
