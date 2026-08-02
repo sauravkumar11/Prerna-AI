@@ -45,6 +45,7 @@ _SITES = {
     "google": "https://google.com",
     "duckduckgo": "https://duckduckgo.com",
     "maps": "https://maps.google.com",
+    "calendar": "https://calendar.google.com",
 }
 
 _SEARCH_ENGINES = {
