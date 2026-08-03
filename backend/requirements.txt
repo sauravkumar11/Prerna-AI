@@ -48,11 +48,11 @@ webdriver-manager==4.1.2
 starlette==1.3.1
 python-multipart==0.0.32
 
-# ── No confirmed-install evidence for these — verify with `pip show` ───────
-# Restored after a review caught them missing from the first pinning pass
-# (they were present in the original unpinned file but overlooked when
-# checking it — confirmed via `pip show` recommendation, not re-guessed).
-pytest==8.3.4
+# ── pytest IS confirmed (9.1.1, from a real test run earlier in this ──────
+# project — an earlier pin here of 8.3.4 was an unverified guess and got
+# corrected). pywinauto/uiautomation/pytesseract still have no confirmed-
+# install evidence — verify with `pip show` after installing.
+pytest==9.1.1
 pywinauto==0.6.9
 uiautomation==2.0.20
 pytesseract==0.3.13
