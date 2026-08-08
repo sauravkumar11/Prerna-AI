@@ -6,6 +6,86 @@ cause (what was actually wrong) and the fix — not just "fixed a bug."
 
 ---
 
+## Prerna Core v1.2 — Event Bus Foundation
+
+Scope, per the version brief: introduce Event Bus INFRASTRUCTURE only — no
+migration of existing modules onto it, no World State / Plugin System /
+Goal Engine / Knowledge Graph (explicit non-goals, deferred to future
+versions). Backward compatibility was the hard constraint: nothing in
+Planner, Executor, Memory, Voice, or Browser tools was rewritten.
+
+### What was added
+
+- **`agent/events.py`** — `Event` (generic envelope with id, timestamp,
+  source, payload, metadata, and `trace_id` reusing v1.1.1's existing
+  request-tracing system rather than a second correlation-id mechanism)
+  and `EventType` (initial catalogue of 11 event types — defined for
+  future use, not yet all wired to a publisher).
+- **`agent/event_bus.py`** — `EventBus` with `subscribe()` /
+  `unsubscribe()` / `publish()` (synchronous) / `publish_async()`
+  (non-blocking) / `shutdown()` (graceful). Process-wide singleton via
+  `get_event_bus()`.
+
+**Design decision, stated explicitly per the brief's own instruction to
+explain assumptions rather than make breaking changes:** the async queue
+is built on `queue.Queue` + a background `threading.Thread`, not
+`asyncio`. Most of this codebase (e.g. `/chat`, a sync FastAPI route run
+in Starlette's thread pool) is fundamentally synchronous — an
+asyncio-based queue would only work reliably from inside a running event
+loop. `queue.Queue` is thread-safe by construction and works identically
+from sync or async callers. Documented in full in `docs/ARCHITECTURE.md`.
+
+### The one integration point (exactly as scoped — "Planner → publish
+### (UserCommand) → Executor subscribes", no other module migrations)
+
+- `agent/planner.py`'s `plan()` now publishes an `EventType.USER_COMMAND`
+  event as its first line — a pure additive side effect. Signature,
+  return value, and all existing logic are byte-for-byte unchanged.
+- `agent/executor.py` subscribes to it at module load time. The
+  subscriber (`_on_user_command`) is deliberately inert beyond a debug
+  log line — `execute_step()` / `execute_plan()` are still called
+  directly by `app/api/chat.py` exactly as before. This proves the
+  publish → subscribe wiring works end-to-end without migrating any real
+  control flow onto it.
+
+**Verified end-to-end, not just each half in isolation:** imported the
+real `executor.py` (registers exactly 1 subscriber), called the real,
+unmodified `planner.plan()` with a fake model, and confirmed both that
+the executor's subscriber genuinely received the event with the correct
+payload AND that `plan()`'s actual return value was completely
+unaffected.
+
+### Tests
+
+**`tests/test_event_bus.py` — 26 tests**, covering every item listed in
+the version brief: subscribe, unsubscribe (including a safe no-op on an
+unknown handler), synchronous publish, asynchronous publish, multiple
+subscribers, exception handling (a failing handler is isolated and logged
+— it does not stop other subscribers or propagate to the publisher),
+event ordering (both synchronous subscription order and FIFO ordering
+under the async queue), duplicate subscriptions (deliberately
+deduplicated — see design note in `event_bus.py`), thread safety (20 real
+concurrent `threading.Thread` workers hammering `publish_async()`, zero
+lost events), and graceful queue shutdown (drains already-queued events
+before stopping; the bus remains usable afterward — a fresh
+`publish_async()` call restarts the worker rather than doing nothing
+forever).
+
+All pre-existing tests continue to pass — zero regressions, confirming
+"preserve existing functionality."
+
+### Explicitly deferred (per the version brief's own NON-GOALS — not
+### oversights)
+
+World State, Capability Registry, Plugin System, Goal Engine, Knowledge
+Graph, Vision Engine, Multi-Agent System. Also: no module beyond Planner/
+Executor publishes or subscribes to anything yet; the 10 event types
+beyond `USER_COMMAND` are defined but not yet wired to any publisher —
+both are intentional scope boundaries for a future version, not gaps in
+this one.
+
+---
+
 ## Prerna Core v1.1.2 — Reliability & Type Safety
 
 Scope: only the four High-severity findings from the Architecture Review
