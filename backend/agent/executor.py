@@ -17,6 +17,14 @@ agent.verification) that checks the action actually happened, not just that
 the handler returned success — e.g. did the Camera window actually appear?
 Only used for actions that opted in; everything else behaves exactly as
 before.
+
+v1.2: subscribes to EventType.USER_COMMAND via the Event Bus (see
+docs/ARCHITECTURE.md for why this specific pairing was chosen as the one
+integration point for this version). Deliberately inert beyond logging —
+execute_step()/execute_plan() below are UNCHANGED and still invoked
+directly by app/api/chat.py exactly as before; nothing here depends on
+the event actually arriving. This proves the publish->subscribe wiring
+works end-to-end without migrating any real control flow onto it yet.
 """
 
 from __future__ import annotations
@@ -28,7 +36,21 @@ from agent.registry import ToolResult, call_handler
 from agent.validation import validate
 from agent.verification import run_with_verification
 from agent import session
+from agent.event_bus import get_event_bus
+from agent.events import EventType
 from memory.memory_manager import log_activity
+from utils.logger import get_logger
+
+logger = get_logger(__name__)
+
+
+def _on_user_command(event) -> None:
+    """v1.2 Event Bus foundation subscriber — see module docstring for
+    why this is deliberately a log line and nothing more, for now."""
+    logger.debug("Executor observed UserCommand event: %r", event.payload)
+
+
+get_event_bus().subscribe(EventType.USER_COMMAND, _on_user_command)
 
 
 def execute_step(step: Dict[str, Any], confirmed: bool = False) -> ToolResult:
@@ -146,6 +168,13 @@ def execute_plan(steps: List[Dict[str, Any]], confirmed: bool = False) -> ToolRe
 
     return ToolResult(
         success=overall_success,
-        message=" ".join(messages),
+        # ToolResult.__post_init__ now guarantees every result.message
+        # appended above is already a real str — this str() coercion is
+        # deliberate defense-in-depth on top of that, not a replacement
+        # for it: it's what keeps this specific join from ever crashing
+        # even if something upstream bypasses normal ToolResult
+        # construction. Cheap insurance against the exact bug class this
+        # code already has direct field experience with.
+        message=" ".join(str(m) for m in messages),
         data={"steps": executed},
     )

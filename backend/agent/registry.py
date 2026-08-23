@@ -39,12 +39,43 @@ class ToolResult:
     every featured artist, or "Screenshot saved." instead of reading a full
     Windows file path aloud. When omitted, `message` is used for speech too
     (existing behaviour, fully backward compatible).
+
+    v1.1.2: fields are validated at construction time (see __post_init__).
+    This is deliberate, not incidental — a real production bug shipped
+    when a tool's underlying action function was changed to return
+    `(success, message)` tuples, but its wrapper still did
+    `ToolResult(True, some_tuple)`, passing the whole tuple as `message`.
+    That crashed deep inside execute_plan()'s `" ".join(messages)` with a
+    confusing generic TypeError, several call frames away from the actual
+    mistake. Every tool handler already runs inside registry.safe()'s
+    try/except, which converts ANY exception (including one raised here)
+    into a graceful failed ToolResult — so this validation can only turn
+    an eventual confusing crash into an immediate, clear, still-gracefully-
+    handled one. It cannot introduce a new failure mode.
     """
 
     success: bool
     message: str
     data: Optional[Any] = None
     speech: Optional[str] = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.success, bool):
+            raise TypeError(
+                f"ToolResult.success must be a bool, got {type(self.success).__name__}: {self.success!r}. "
+                "A tool handler likely passed something other than True/False directly."
+            )
+        if not isinstance(self.message, str):
+            raise TypeError(
+                f"ToolResult.message must be a str, got {type(self.message).__name__}: {self.message!r}. "
+                "A tool's underlying action function likely returns a (success, message) tuple now, "
+                "and its ToolResult-building wrapper needs to unpack it instead of passing it through whole "
+                "(this is exactly the whatsapp_tool.py bug from docs/CHANGELOG.md — check for the same pattern here)."
+            )
+        if self.speech is not None and not isinstance(self.speech, str):
+            raise TypeError(
+                f"ToolResult.speech must be a str or None, got {type(self.speech).__name__}: {self.speech!r}."
+            )
 
     def __str__(self) -> str:  # convenient for f-strings / legacy callers
         return self.message
@@ -186,4 +217,4 @@ def describe_tools() -> str:
             args_hint = f" (args: {', '.join(act.required_args)})" if act.required_args else ""
             danger_hint = " [requires confirmation]" if act.dangerous else ""
             lines.append(f'    - action "{act.name}"{args_hint}{danger_hint}: {act.description}')
-    return "\n".join(lines)
+    return "\n".join(lines) 

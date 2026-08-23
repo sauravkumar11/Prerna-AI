@@ -10,6 +10,15 @@ Contract: plan() always returns a LIST of step dicts, even for a single
 action - [{"tool": ..., "args": {...}, "reason": ...}, ...]. This is what
 lets compound commands ("open camera and click pictures") run as two real
 steps instead of the model being forced to pick just one.
+
+v1.2: publishes an EventType.USER_COMMAND event via the Event Bus the
+moment a message enters planning — the one deliberate, minimal integration
+point for this version (see docs/ARCHITECTURE.md). This is a pure
+additive side effect: it does not change plan()'s signature, return
+value, or existing control flow in any way. If the Event Bus has zero
+subscribers (as it will until executor.py's subscription, or in any
+environment that doesn't import that module), this publish is a fast,
+harmless no-op.
 """
 
 from __future__ import annotations
@@ -19,6 +28,8 @@ from utils.logger import get_logger
 from typing import Any, Dict, List
 
 from agent.registry import describe_tools
+from agent.event_bus import get_event_bus
+from agent.events import Event, EventType
 from config.settings import GEMINI_PLAN_TEMPERATURE
 
 logger = get_logger(__name__)
@@ -269,6 +280,12 @@ def plan(
     active_window: Dict[str, Any] = None,
     session_state: Dict[str, Any] = None,
 ) -> List[Dict[str, Any]]:
+    # v1.2 Event Bus: pure additive side effect, no impact on control flow
+    # or return value below. See module docstring.
+    get_event_bus().publish(
+        Event(EventType.USER_COMMAND, payload={"message": user_message}, source="planner")
+    )
+
     prompt = _build_prompt(user_message, contacts, recent_turns or [], active_window, session_state)
 
     response = model.generate_content(prompt, generation_config={"temperature": GEMINI_PLAN_TEMPERATURE})

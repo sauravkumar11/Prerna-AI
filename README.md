@@ -1,5 +1,14 @@
 # Prerna
 
+## Author
+
+**Saurav Kumar**
+
+Creator and maintainer of **Prerna AI**.
+
+Prerna AI is a long-term research and engineering project focused on building a next-generation AI companion that evolves into an AI Operating System.
+
+
 > **An AI Companion for Windows**
 
 Prerna is an intelligent desktop AI companion designed to function as a personal AI operating layer rather than a traditional chatbot.

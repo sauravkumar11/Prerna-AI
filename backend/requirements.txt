@@ -1,26 +1,58 @@
-fastapi
-uvicorn[standard]
-python-dotenv
-pydantic
-pywinauto
-google-genai
-pytest
-edge-tts
-pyautogui
-pyperclip
-psutil
-requests
-pillow
-opencv-python
-pywin32
-pyttsx3
-pygame
-numpy
-sounddevice
-soundfile
-SpeechRecognition
-pyaudio
-selenium
-webdriver-manager
-uiautomation
-pytesseract
+# ══════════════════════════════════════════════════════════════════════════
+# Pinned dependency versions (Prerna Core v1.1.3)
+#
+# WHY THIS MATTERS — this isn't precautionary, it already caused a real
+# incident: an earlier unpinned `pip install` resolved a newer `starlette`
+# than the installed `fastapi` expected, crashing on startup with
+# `ImportError: cannot import name 'FormParser' from 'starlette.formparsers'`.
+# A fresh `pip install -r requirements.txt` should always reproduce the
+# exact environment that's actually been tested, not whatever happens to
+# be newest on the day it's run.
+#
+# Most versions below are pinned to EXACTLY what was confirmed working via
+# real `pip install` output earlier in this project's history — not
+# guessed. Versions flagged below don't have that same direct evidence and
+# are pinned to a reasonable current stable version; run `pip show <name>`
+# after installing and adjust if it doesn't match what's actually on your
+# machine today.
+# ══════════════════════════════════════════════════════════════════════════
+
+fastapi==0.139.2
+uvicorn[standard]==0.51.0
+python-dotenv==1.2.2
+pydantic==2.13.4
+google-genai==2.14.0
+edge-tts==7.2.8
+pyautogui==0.9.54
+pyperclip==1.11.0
+psutil==7.2.2
+requests==2.34.2
+pillow==12.3.0
+opencv-python==5.0.0.93
+pywin32==312
+pyttsx3==2.99
+pygame==2.6.1
+numpy==2.4.6
+sounddevice==0.5.5
+soundfile==0.14.0
+SpeechRecognition==3.17.0
+pyaudio==0.2.14
+selenium==4.46.0
+webdriver-manager==4.1.2
+
+# ── Critical TRANSITIVE dependencies, pinned explicitly ─────────────────────
+# starlette is what actually broke in the incident above — it's pulled in
+# by fastapi, but pinning it directly here means it can never silently
+# drift to an incompatible version again regardless of what fastapi's own
+# range allows in the future.
+starlette==1.3.1
+python-multipart==0.0.32
+
+# ── pytest IS confirmed (9.1.1, from a real test run earlier in this ──────
+# project — an earlier pin here of 8.3.4 was an unverified guess and got
+# corrected). pywinauto/uiautomation/pytesseract still have no confirmed-
+# install evidence — verify with `pip show` after installing.
+pytest==9.1.1
+pywinauto==0.6.9
+uiautomation==2.0.20
+pytesseract==0.3.13

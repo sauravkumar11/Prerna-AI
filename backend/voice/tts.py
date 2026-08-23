@@ -18,6 +18,7 @@ import tempfile
 import edge_tts
 
 from utils.logger import get_logger
+from voice.response_formatter import format_for_speech
 from voice.speech_naturalizer import naturalize, SpeechChunk
 
 logger = get_logger(__name__)
@@ -101,6 +102,13 @@ async def generate_audio(text: str, emotion: str = "CALM") -> str:
 async def generate_audio_bytes(text: str, emotion: str = "CALM") -> bytes:
     """Generate TTS and return raw bytes.
 
+    Runs voice.response_formatter first — strips implementation-detail
+    noise (raw file paths, full YouTube titles, URLs, window titles) that
+    a tool's `message`/unset `speech` might otherwise contain — THEN
+    naturalize() handles sentence chunking and rhythm on the cleaned-up
+    result. Semantic cleanup before phrasing polish, same ordering
+    reasoning as the naturalizer's own module docstring.
+
     Applies the speech naturalizer: for a genuinely multi-sentence reply,
     each sentence is synthesized with its own small rate/pitch variation
     (see voice/speech_naturalizer.py for why this — not SSML pauses/
@@ -113,6 +121,7 @@ async def generate_audio_bytes(text: str, emotion: str = "CALM") -> bytes:
     the original single-call implementation — no latency regression for
     the short confirmations that make up most tool-command replies.
     """
+    text = format_for_speech(text)
     chunks = naturalize(text)
 
     if len(chunks) <= 1:
