@@ -33,3 +33,4 @@ from . import notes_tool  # noqa: F401
 from . import search_tool  # noqa: F401
 from . import coding_tool  # noqa: F401
 from . import email_tool  # noqa: F401
+from . import reminder_tool  # noqa: F401
