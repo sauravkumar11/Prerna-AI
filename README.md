@@ -23,7 +23,13 @@ The long-term vision is to evolve Prerna into a production-grade AI Operating Sy
 
 **Current Version**
 
-Prerna Core **v1.1**
+Prerna Core **v1.1.1** ✅ (Latest)
+
+**Latest Release Highlights**
+- ✅ Comprehensive Test Infrastructure (75+ tests)
+- ✅ Reminder & Task Management System
+- ✅ Type Safety & Error Handling Framework
+- ✅ Full backward compatibility maintained
 
 **Development Stage**
 
@@ -39,21 +45,44 @@ Incremental Evolution
 
 Current capabilities include:
 
-- Natural voice conversation
-- Google Gemini integration
-- Long-term memory
-- Session memory
-- Desktop automation
-- Browser automation
-- WhatsApp automation
-- YouTube automation
-- Application launcher
-- Planner & Executor
-- Instant intent engine
-- Performance tracing
-- Structured logging
+## Core AI & Conversation
+- Natural voice conversation (Hindi & English)
+- Google Gemini integration for reasoning
+- Long-term memory & short-term session memory
+- Conversation history & context awareness
+- Emotion detection & personality tags
+
+## Productivity & Task Management ✨ NEW in v1.1.1
+- **Reminder & Task System**
+  - Create, list, complete, and delete tasks
+  - Filter by priority, status, category
+  - Overdue detection & due date management
+  - Persistent JSON-based storage
+  - Automatic summarization & analytics
+  - Natural language voice commands
+
+## Desktop & System Automation
+- Desktop automation (lock, shutdown, restart)
+- Application launcher (20+ apps)
+- Browser automation & web navigation
+- WhatsApp automation (send messages, calls)
+- YouTube automation (play, pause, next)
+- Instagram automation
+- File operations & clipboard management
+- Screenshot & camera control
+- Volume & Bluetooth control
+- WiFi management
+
+## Advanced Features
+- Planner & Executor for multi-step tasks
+- Instant intent engine for fast responses
+- Predictive assistant (proactive suggestions)
+- Performance tracing & structured logging
 - Chrome session management
-- Context-aware conversations
+- Email integration
+- Alarm & note management
+- Coding assistance
+- Search integration
 
 ---
 
@@ -98,15 +127,19 @@ Instead:
 ## Completed
 
 - ✅ Prerna Core v1.1 — Performance Foundation
+- ✅ **v1.1.1 — Test Infrastructure & Reminder System** (Current)
+  - 75+ comprehensive tests
+  - Reminder & Task management
+  - Type system & error handling
+  - Full backward compatibility
 
-## Planned
+## In Progress & Planned
 
-- 🔄 v1.1.1 — Test Infrastructure
-- 🔄 v1.1.2 — Reliability & Type Safety
-- 🔄 v1.1.3 — Dependency & Cleanup
-- 🔄 v1.2 — Event Bus
-- 🔄 v1.3 — World State
-- 🔄 v1.4 — Capability Registry
+- 🔄 v1.1.2 — Reliability & Type Safety Enhancements
+- 🔄 v1.1.3 — Dependency Updates & Cleanup
+- 🔄 v1.2 — Event Bus Architecture
+- 🔄 v1.3 — World State Management
+- 🔄 v1.4 — Enhanced Capability Registry
 - 🔄 v1.5 — Plugin System
 - 🔄 v1.6 — Memory Refactor
 - 🔄 v1.7 — Goal Engine
