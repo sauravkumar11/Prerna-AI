@@ -70,6 +70,7 @@ SCREENSHOT_DIR: Path = BACKEND_DIR / "screenshots"
 CAMERA_CAPTURE_DIR: Path = BACKEND_DIR / "captures"
 NOTES_FILE: Path = MEMORY_DIR / "notes.json"
 NOTEPAD_NOTES_DIR: Path = Path.home() / "Documents" / "Prerna Notes"
+DATA_DIR: Path = BACKEND_DIR / "data"
 
 # ── Common Windows folder shortcuts ───────────────────────────────────────────
 FOLDER_SHORTCUTS: dict[str, Path] = {
