@@ -26,13 +26,13 @@ The architecture is designed to grow incrementally while keeping every version s
 
 # Current Version
 
-Prerna Core v1.1
+Prerna Core v1.2 (Event Bus foundation phase)
 
 Status:
 Stable Development
 
 Current Milestone:
-v1.1.1 - Test Infrastructure
+v1.2 - Event Bus foundation hardening
 
 ---
 

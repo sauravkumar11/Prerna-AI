@@ -1,5 +1,5 @@
 # ══════════════════════════════════════════════════════════════════════════
-# Pinned dependency versions (Prerna Core v1.1.3)
+# Pinned dependency versions (Prerna Core v1.2 development baseline)
 #
 # WHY THIS MATTERS — this isn't precautionary, it already caused a real
 # incident: an earlier unpinned `pip install` resolved a newer `starlette`
@@ -53,6 +53,7 @@ python-multipart==0.0.32
 # corrected). pywinauto/uiautomation/pytesseract still have no confirmed-
 # install evidence — verify with `pip show` after installing.
 pytest==9.1.1
+pytest-cov==7.1.0
 pywinauto==0.6.9
 uiautomation==2.0.20
 pytesseract==0.3.13

@@ -1,242 +1,113 @@
-# Prerna
+# Prerna AI
 
-## Author
+Prerna is a Windows-focused AI desktop companion with a FastAPI backend, React frontend, and Electron shell.
 
-**Saurav Kumar**
+## Current status
 
-Creator and maintainer of **Prerna AI**.
+- **Version baseline:** Prerna Core **v1.2** (Event Bus foundation phase, active development)
+- **Platform focus:** Windows 10/11 for full automation features
+- **Linux/macOS:** useful for backend/frontend development and most unit tests, but not full desktop automation behavior
 
-Prerna AI is a long-term research and engineering project focused on building a next-generation AI companion that evolves into an AI Operating System.
+## Repository structure
 
-
-> **An AI Companion for Windows**
-
-Prerna is an intelligent desktop AI companion designed to function as a personal AI operating layer rather than a traditional chatbot.
-
-Instead of only answering questions, Prerna can understand context, remember information, automate Windows, interact with applications, control browsers, execute multi-step tasks, and assist users through natural conversations.
-
-The long-term vision is to evolve Prerna into a production-grade AI Operating System capable of perception, reasoning, planning, execution, and long-term memory.
-
----
-
-# Current Status
-
-**Current Version**
-
-Prerna Core **v1.1.1** ✅ (Latest)
-
-**Latest Release Highlights**
-- ✅ Comprehensive Test Infrastructure (75+ tests)
-- ✅ Reminder & Task Management System
-- ✅ Type Safety & Error Handling Framework
-- ✅ Full backward compatibility maintained
-
-**Development Stage**
-
-Active Development
-
-**Architecture Philosophy**
-
-Incremental Evolution
-
----
-
-# Features
-
-Current capabilities include:
-
-## Core AI & Conversation
-- Natural voice conversation (Hindi & English)
-- Google Gemini integration for reasoning
-- Long-term memory & short-term session memory
-- Conversation history & context awareness
-- Emotion detection & personality tags
-
-## Productivity & Task Management ✨ NEW in v1.1.1
-- **Reminder & Task System**
-  - Create, list, complete, and delete tasks
-  - Filter by priority, status, category
-  - Overdue detection & due date management
-  - Persistent JSON-based storage
-  - Automatic summarization & analytics
-  - Natural language voice commands
-
-## Desktop & System Automation
-- Desktop automation (lock, shutdown, restart)
-- Application launcher (20+ apps)
-- Browser automation & web navigation
-- WhatsApp automation (send messages, calls)
-- YouTube automation (play, pause, next)
-- Instagram automation
-- File operations & clipboard management
-- Screenshot & camera control
-- Volume & Bluetooth control
-- WiFi management
-
-## Advanced Features
-- Planner & Executor for multi-step tasks
-- Instant intent engine for fast responses
-- Predictive assistant (proactive suggestions)
-- Performance tracing & structured logging
-- Chrome session management
-- Email integration
-- Alarm & note management
-- Coding assistance
-- Search integration
-
----
-
-# Technology Stack
-
-## Backend
-
-- Python
-- FastAPI
-- Google Gemini API
-- Selenium
-- PyAutoGUI
-- Edge TTS
-- SQLite / JSON Memory
-
-## Frontend
-
-- Electron
-- React
-
----
-
-# Project Philosophy
-
-Prerna is intentionally developed **incrementally**.
-
-The objective is **not** to rewrite the project repeatedly.
-
-Instead:
-
-- Preserve existing functionality
-- Improve architecture version by version
-- Build production-ready features
-- Maintain backward compatibility
-- Add automated tests before major refactors
-- Measure performance before optimizing
-
----
-
-# Development Roadmap
-
-## Completed
-
-- ✅ Prerna Core v1.1 — Performance Foundation
-- ✅ **v1.1.1 — Test Infrastructure & Reminder System** (Current)
-  - 75+ comprehensive tests
-  - Reminder & Task management
-  - Type system & error handling
-  - Full backward compatibility
-
-## In Progress & Planned
-
-- 🔄 v1.1.2 — Reliability & Type Safety Enhancements
-- 🔄 v1.1.3 — Dependency Updates & Cleanup
-- 🔄 v1.2 — Event Bus Architecture
-- 🔄 v1.3 — World State Management
-- 🔄 v1.4 — Enhanced Capability Registry
-- 🔄 v1.5 — Plugin System
-- 🔄 v1.6 — Memory Refactor
-- 🔄 v1.7 — Goal Engine
-- 🔄 v1.8 — Vision Engine
-- 🔄 v1.9 — Autonomous Execution
-- 🚀 v2.0 — Prerna AI Operating System
-
----
-
-# Repository Structure
-
-```
+```text
 backend/
-frontend/
+  agent/
+  app/
+  config/
+  memory/
+  tests/
+  tools/
+  voice/
+frontend/react/
+  electron/
+  src/
 docs/
-tests/
-scripts/
+  archive/
 ```
 
----
+## Setup
 
-# Development Workflow
+### Backend
 
-Every version follows the same lifecycle:
+```bash
+cd backend
+python -m venv venv
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+pip install -r requirements.txt
+```
 
-1. Plan
-2. Review
-3. Implement
-4. Test
-5. Verify
-6. Release
-7. Tag
+Create `backend/.env`:
 
-Large rewrites are intentionally avoided.
+```dotenv
+GEMINI_API_KEY=your_key_here
+# Optional controlled failover only (off by default)
+# ENABLE_GEMINI_KEY_FAILOVER=true
+# GEMINI_API_KEY_2=your_failover_key_here
+```
 
----
+Run backend:
 
-# Versioning
+```bash
+python main.py
+```
 
-Prerna follows Semantic Versioning.
+### Frontend + Electron (development)
 
-Examples:
+```bash
+cd frontend/react
+npm install
+npm run start
+```
 
-- v1.1.0
-- v1.1.1
-- v1.2.0
-- v2.0.0
+This starts Vite (`http://localhost:5173`) and Electron in dev mode.
 
----
+### Electron production-style local preview
 
-# Testing
+```bash
+cd frontend/react
+npm install
+npm run electron:prod
+```
 
-Every architectural change should include automated regression tests whenever practical.
+This builds the frontend and starts Electron loading `frontend/react/dist/index.html`.
+It is **not** an installer/distributable packaging pipeline.
 
-No feature is considered complete until it has been verified.
+## Testing
 
----
+From repository root:
 
-# Documentation
+```bash
+python -m pytest -q
+```
 
-The `docs/` directory contains:
+or from backend:
 
-- Architecture
-- Roadmap
-- Design Decisions
-- Version History
-- Release Notes
+```bash
+cd backend
+python -m pytest -q
+```
 
-These documents are treated as the project's source of truth.
+Notes:
+- CI uses a dummy Gemini key for tests; no real API credentials are required.
+- Some automation capabilities are Windows-only by design and should be validated on Windows.
 
----
+## CI
 
-# Security
+`.github/workflows/ci.yml` runs:
+- Linux backend collection/tests
+- Windows-focused backend tests
+- Frontend build check
 
-Sensitive files such as `.env`, API keys, tokens, and credentials are never committed.
+## Security and data hygiene
 
----
+- Runtime memory/log/screenshot artifacts are intentionally gitignored.
+- Never commit real `.env` files or credentials.
+- If sensitive files were ever pushed historically, see `docs/SECURITY_HISTORY_CLEANUP.md` for local history-rewrite procedure.
 
-# License
+## License
 
-To be selected before public release.
-
----
-
-# Future Vision
-
-Prerna aims to become an AI Operating System capable of:
-
-- Continuous perception
-- Context awareness
-- Long-term memory
-- Goal-based planning
-- Desktop understanding
-- Browser understanding
-- Personal intelligence
-- Autonomous task execution
-- Natural conversations
-- Plugin-based extensibility
-
-The project emphasizes stability, maintainability, and long-term evolution over rapid feature growth.
+This project is licensed under the MIT License. See `LICENSE`.

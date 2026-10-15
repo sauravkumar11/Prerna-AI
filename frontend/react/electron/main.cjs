@@ -1,4 +1,7 @@
 const { app, BrowserWindow } = require("electron");
+const path = require("path");
+
+const DEV_SERVER_URL = process.env.ELECTRON_RENDERER_URL || "http://localhost:5173";
 
 function createWindow() {
     const win = new BrowserWindow({
@@ -10,7 +13,11 @@ function createWindow() {
         },
     });
 
-    win.loadURL("http://localhost:5173");
+    if (app.isPackaged) {
+        win.loadFile(path.join(__dirname, "..", "dist", "index.html"));
+        return;
+    }
+    win.loadURL(DEV_SERVER_URL);
 }
 
 app.whenReady().then(createWindow);

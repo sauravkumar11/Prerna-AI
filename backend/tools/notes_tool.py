@@ -17,6 +17,7 @@ from agent.registry import ToolResult, action
 TOOL_DESCRIPTION = "Create, append to, and search short notes Prerna remembers."
 
 from config.settings import NOTES_FILE as _NOTES_FILE
+from utils.atomic_io import atomic_write_json
 
 
 def _load() -> List[Dict[str, Any]]:
@@ -28,8 +29,7 @@ def _load() -> List[Dict[str, Any]]:
 
 
 def _save(notes: List[Dict[str, Any]]) -> None:
-    with open(_NOTES_FILE, "w", encoding="utf-8") as f:
-        json.dump(notes, f, indent=2, ensure_ascii=False)
+    atomic_write_json(_NOTES_FILE, notes, indent=2, ensure_ascii=False)
 
 
 @action("notes", "create", "Create a new note.", required_args=["content"], tool_description=TOOL_DESCRIPTION)

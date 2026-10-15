@@ -1,7 +1,7 @@
 """
 Dependencies
 ============
-Gemini model manager: automatic API key rotation on 429 quota errors, model
+Gemini model manager: optional API key failover on 429 quota errors, model
 fallback (e.g. gemini-2.5-flash -> gemini-2.0-flash) if the configured
 model itself is unavailable, AND per-(model, key) cooldown tracking.
 
@@ -10,7 +10,8 @@ deprecated and no longer works reliably with newer API keys / model names).
 
 .env format:
     GEMINI_API_KEY=key1          # required
-    GEMINI_API_KEY_2=key2        # optional extras
+    ENABLE_GEMINI_KEY_FAILOVER=true   # optional, default false
+    GEMINI_API_KEY_2=key2        # optional failover key
     GEMINI_API_KEY_3=key3
     ...
     GEMINI_MODEL=gemini-flash-latest   # recommended: auto-tracks the
@@ -49,7 +50,7 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 # Default cooldown when a quota error doesn't tell us how long to wait.
-# Gemini free-tier quotas are typically per-minute, so 60s is a safe floor.
+# Quota windows are typically minute-scale, so 60s is a safe floor.
 _DEFAULT_QUOTA_COOLDOWN_S = 60.0
 # A "model not found / unavailable" error isn't going to fix itself in a
 # minute — deprioritize that model for a long time rather than retrying it

@@ -1,319 +1,90 @@
-"""
-test_executor.py
-================
-Unit tests for agent/executor.py
-
-Tests the core execution engine that runs planned tool actions,
-handles errors gracefully, and manages execution state.
-
-v1.1.1 addition: Comprehensive executor test coverage
-"""
+"""Tests for agent/executor.py aligned to current reasoning/validation flow."""
 
 from __future__ import annotations
 
-import pytest
-from unittest.mock import MagicMock, patch, AsyncMock
-from agent.registry import ToolResult, ToolAction, Tool
-from agent.executor import execute_plan
+from types import SimpleNamespace
+from unittest.mock import MagicMock, patch
+
+from agent.executor import execute_plan, execute_step
+from agent.registry import ToolAction, ToolResult
+from agent.validation import ValidationResult
 
 
-class TestExecutePlan:
-    """Test suite for plan execution."""
-
-    @pytest.mark.unit
-    def test_execute_empty_plan(self):
-        """Executing an empty plan should succeed immediately."""
-        plan = []
-        result = execute_plan(plan, {})
-        assert result is not None
-
-    @pytest.mark.unit
-    def test_execute_single_step_success(self, helpers):
-        """A single successful step should complete."""
-        plan = [
-            {
-                "tool": "system_tool",
-                "action": "increase_volume",
-                "args": {"amount": 10},
-            }
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            mock_action.handler = MagicMock(
-                return_value=ToolResult(True, "Volume increased to 10%")
-            )
-            mock_registry.return_value = {
-                "system_tool": Tool(name="system_tool", actions={
-                    "increase_volume": mock_action
-                })
-            }
-
-            result = execute_plan(plan, {})
-            assert result is not None
-
-    @pytest.mark.unit
-    def test_execute_multiple_steps_sequential(self):
-        """Multiple steps should execute in order."""
-        plan = [
-            {
-                "tool": "browser_tool",
-                "action": "open",
-                "args": {"url": "https://example.com"},
-            },
-            {
-                "tool": "browser_tool",
-                "action": "click",
-                "args": {"element": "button"},
-            },
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_actions = {
-                "open": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(True, "Opened URL")
-                )),
-                "click": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(True, "Clicked element")
-                )),
-            }
-            mock_registry.return_value = {
-                "browser_tool": Tool(name="browser_tool", actions=mock_actions)
-            }
-
-            result = execute_plan(plan, {})
-            assert result is not None
-
-    @pytest.mark.unit
-    def test_execute_stops_on_failure(self):
-        """Execution should stop when a step fails."""
-        plan = [
-            {
-                "tool": "browser_tool",
-                "action": "open",
-                "args": {"url": "https://example.com"},
-            },
-            {
-                "tool": "browser_tool",
-                "action": "click",
-                "args": {"element": "button"},
-            },
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_actions = {
-                "open": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(False, "Failed to open URL")
-                )),
-                "click": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(True, "Clicked element")
-                )),
-            }
-            mock_registry.return_value = {
-                "browser_tool": Tool(name="browser_tool", actions=mock_actions)
-            }
-
-            result = execute_plan(plan, {})
-            # Second action should not have been called
-            mock_actions["click"].handler.assert_not_called()
-
-    @pytest.mark.unit
-    def test_execute_with_confirmation_required(self):
-        """Steps marked dangerous should require confirmation."""
-        plan = [
-            {
-                "tool": "system_tool",
-                "action": "shutdown",
-                "args": {},
-                "requires_confirmation": True,
-            }
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            mock_action.handler = MagicMock(
-                return_value=ToolResult(True, "System shutting down")
-            )
-            mock_action.dangerous = True
-
-            mock_registry.return_value = {
-                "system_tool": Tool(name="system_tool", actions={
-                    "shutdown": mock_action
-                })
-            }
-
-            # With confirmation_confirmed=False, should skip execution
-            context = {"confirmation_confirmed": False}
-            result = execute_plan(plan, context)
-
-            # Handler should not have been called without confirmation
-            mock_action.handler.assert_not_called()
-
-    @pytest.mark.unit
-    def test_execute_handles_missing_tool(self, helpers):
-        """Execution should gracefully handle missing tool."""
-        plan = [
-            {
-                "tool": "nonexistent_tool",
-                "action": "some_action",
-                "args": {},
-            }
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_registry.return_value = {}  # Empty registry
-
-            result = execute_plan(plan, {})
-            # Should return a result indicating failure
-            assert result is not None
-
-    @pytest.mark.unit
-    def test_execute_with_context_passed_to_handlers(self):
-        """Handler should receive execution context."""
-        plan = [
-            {
-                "tool": "system_tool",
-                "action": "get_info",
-                "args": {},
-            }
-        ]
-
-        context = {
-            "user_name": "Test User",
-            "session_id": "test-123",
-        }
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            handler = MagicMock(return_value=ToolResult(True, "Info retrieved"))
-            mock_action.handler = handler
-
-            mock_registry.return_value = {
-                "system_tool": Tool(name="system_tool", actions={
-                    "get_info": mock_action
-                })
-            }
-
-            result = execute_plan(plan, context)
-            # Handler should have been called
-            assert handler.called
-
-    @pytest.mark.unit
-    def test_execute_exception_handling(self):
-        """Exceptions during execution should be caught and logged."""
-        plan = [
-            {
-                "tool": "browser_tool",
-                "action": "open",
-                "args": {"url": "https://example.com"},
-            }
-        ]
-
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            mock_action.handler = MagicMock(
-                side_effect=RuntimeError("Browser crashed")
-            )
-
-            mock_registry.return_value = {
-                "browser_tool": Tool(name="browser_tool", actions={
-                    "open": mock_action
-                })
-            }
-
-            result = execute_plan(plan, {})
-            # Should return a failed result, not raise
-            assert result is not None
+def _outcome(*, ok: bool = True, tool: str = "system", action_name: str = "lock", action: ToolAction | None = None):
+    return SimpleNamespace(
+        ok=ok,
+        rationale="",
+        tool_name=tool,
+        action_name=action_name,
+        action=action,
+        error_message=None if ok else "failed",
+    )
 
 
-class TestExecutorEdgeCases:
-    """Test edge cases and error conditions."""
+def test_execute_step_success_calls_handler_and_logs_activity():
+    tool_action = ToolAction(name="lock", handler=lambda **_: ToolResult(True, "ok"), required_args=[])
 
-    @pytest.mark.unit
-    def test_execute_with_empty_args(self):
-        """Steps with empty args should execute normally."""
-        plan = [
-            {
-                "tool": "system_tool",
-                "action": "lock_screen",
-                "args": {},
-            }
-        ]
+    with patch("agent.executor.reason", return_value=_outcome(action=tool_action)), patch(
+        "agent.executor.validate", return_value=ValidationResult(ok=True)
+    ), patch("agent.executor.run_with_verification", return_value=(ToolResult(True, "done"), True)) as run_verify, patch(
+        "agent.executor.log_activity"
+    ) as log_activity, patch("agent.executor.session.update_from_action") as update_from_action:
+        result = execute_step({"tool": "system", "args": {"action": "lock"}})
 
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            mock_action.handler = MagicMock(
-                return_value=ToolResult(True, "Screen locked")
-            )
+    assert result.success is True
+    run_verify.assert_called_once()
+    log_activity.assert_called_once()
+    update_from_action.assert_called_once()
 
-            mock_registry.return_value = {
-                "system_tool": Tool(name="system_tool", actions={
-                    "lock_screen": mock_action
-                })
-            }
 
-            result = execute_plan(plan, {})
-            assert result is not None
+def test_execute_step_requires_confirmation_when_validation_demands_it():
+    tool_action = ToolAction(name="shutdown", handler=lambda **_: ToolResult(True, "ok"), required_args=[], dangerous=True)
+    validation = ValidationResult(ok=False, needs_confirmation=True, error_message="confirm")
 
-    @pytest.mark.unit
-    def test_execute_with_large_args(self):
-        """Steps with large argument payloads should work."""
-        large_content = "x" * 10000
-        plan = [
-            {
-                "tool": "file_tool",
-                "action": "write",
-                "args": {"path": "/tmp/file.txt", "content": large_content},
-            }
-        ]
+    with patch("agent.executor.reason", return_value=_outcome(action_name="shutdown", action=tool_action)), patch(
+        "agent.executor.validate", return_value=validation
+    ):
+        result = execute_step({"tool": "system", "args": {"action": "shutdown"}}, confirmed=False)
 
-        with patch("agent.executor.get_registry") as mock_registry:
-            mock_action = MagicMock()
-            mock_action.handler = MagicMock(
-                return_value=ToolResult(True, "File written")
-            )
+    assert result.success is False
+    assert result.data["requires_confirmation"] is True
+    assert result.data["tool"] == "system"
 
-            mock_registry.return_value = {
-                "file_tool": Tool(name="file_tool", actions={
-                    "write": mock_action
-                })
-            }
 
-            result = execute_plan(plan, {})
-            assert result is not None
+def test_execute_plan_stops_after_first_failure():
+    with patch("agent.executor.execute_step") as execute_step_mock:
+        execute_step_mock.side_effect = [ToolResult(False, "first failed"), ToolResult(True, "second ok")]
+        result = execute_plan(
+            [
+                {"tool": "system", "args": {"action": "lock"}},
+                {"tool": "system", "args": {"action": "sleep"}},
+            ]
+        )
 
-    @pytest.mark.unit
-    def test_execute_response_aggregation(self):
-        """Results from multiple steps should be aggregated."""
-        plan = [
-            {
-                "tool": "system_tool",
-                "action": "action1",
-                "args": {},
-            },
-            {
-                "tool": "system_tool",
-                "action": "action2",
-                "args": {},
-            },
-        ]
+    assert result.success is False
+    assert execute_step_mock.call_count == 1
 
-        with patch("agent.executor.get_registry") as mock_registry:
-            actions = {
-                "action1": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(True, "Action 1 done")
-                )),
-                "action2": MagicMock(handler=MagicMock(
-                    return_value=ToolResult(True, "Action 2 done")
-                )),
-            }
 
-            mock_registry.return_value = {
-                "system_tool": Tool(name="system_tool", actions=actions)
-            }
+def test_execute_plan_chat_only_returns_chat_result():
+    result = execute_plan([{"tool": "chat", "args": {}}])
+    assert result.success is True
+    assert result.data == {"is_chat": True}
 
-            result = execute_plan(plan, {})
-            assert result is not None
-            # Both actions should be called
-            assert actions["action1"].handler.called
-            assert actions["action2"].handler.called
+
+def test_execute_plan_returns_confirmation_result_without_running_later_steps():
+    confirmation = ToolResult(
+        False,
+        "confirm",
+        data={"requires_confirmation": True, "tool": "system", "action": "shutdown", "step": {}},
+    )
+
+    with patch("agent.executor.execute_step", return_value=confirmation) as execute_step_mock:
+        result = execute_plan(
+            [
+                {"tool": "system", "args": {"action": "shutdown"}},
+                {"tool": "system", "args": {"action": "sleep"}},
+            ]
+        )
+
+    assert result is confirmation
+    execute_step_mock.assert_called_once()
