@@ -86,6 +86,16 @@ KEYEVENTF_KEYUP     = 0x0002
 # found, or the debug port never came up).
 _last_driver_error: str | None = None
 
+# v1.2.1 Bug 3: the Selenium window_handle (string) of the tab we're
+# currently using for YouTube, if any. Tracked so a second "play X"
+# reuses that tab instead of opening a brand-new one every call — the
+# previous behavior accumulated tabs across a session and, combined with
+# the OS-level window never being brought to the foreground (see
+# ChromeSessionManager.bring_to_foreground), made a second search appear
+# to silently do nothing even though it really was running, just in a
+# background tab the user never saw.
+_youtube_tab_handle: str | None = None
+
 
 def _press(vk_code: int, times: int = 1) -> None:
     for _ in range(times):
@@ -111,6 +121,24 @@ def _get_driver():
     driver = session.get_browser()
     _last_driver_error = session.last_error
     return driver
+
+
+def _use_youtube_tab(driver, url: str) -> None:
+    """v1.2.1 Bug 3 fix. Navigate to `url` in the SAME YouTube tab used by
+    the previous call, if it's still open, instead of always opening a
+    new one (see `_youtube_tab_handle` above for why this matters).
+
+    Falls back to opening a fresh tab — via the existing
+    tools.chrome_session.open_in_new_tab — the first time this runs, or
+    any time the previously-tracked tab has since been closed.
+    """
+    global _youtube_tab_handle
+    if _youtube_tab_handle and _youtube_tab_handle in driver.window_handles:
+        driver.switch_to.window(_youtube_tab_handle)
+        driver.get(url)
+    else:
+        open_in_new_tab(driver, url)
+        _youtube_tab_handle = driver.current_window_handle
 
 
 _AD_SKIP_SELECTORS = [
@@ -158,13 +186,16 @@ def _selenium_play_first(query: str) -> ToolResult:
     if driver is None:
         return _url_fallback(query, reason=_last_driver_error)
 
+    session = get_chrome_session()
+    session.bring_to_foreground()  # so the user actually sees the search happen, not just background activity
+
     try:
         from selenium.webdriver.common.by import By
         from selenium.webdriver.support.ui import WebDriverWait
         from selenium.webdriver.support import expected_conditions as EC
 
         url = f"https://www.youtube.com/results?search_query={quote_plus(query)}"
-        open_in_new_tab(driver, url)
+        _use_youtube_tab(driver, url)
 
         # Wait for video thumbnails to load
         wait = WebDriverWait(driver, 12)
@@ -204,6 +235,7 @@ def _selenium_play_first(query: str) -> ToolResult:
 
         title = videos[0].get_attribute("title") or query
         logger.info("Playing YouTube: %s", title)
+        session.bring_to_foreground()  # make sure playback is actually visible, not buried behind another window
         _skip_ads_in_background(driver)
         return ToolResult(
             True,

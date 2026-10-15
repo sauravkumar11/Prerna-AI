@@ -293,6 +293,49 @@ def _mark_profile_exit_clean(engine: dict) -> None:
             logger.debug("Couldn't mark %s as cleanly exited (%s).", prefs_path, exc)
 
 
+def _find_main_window_hwnd(engine: dict):
+    """v1.2.1 Bug 3 helper. Find a visible, titled top-level window handle
+    belonging to one of OUR dedicated automation processes for `engine`.
+
+    Returns None if pywin32/psutil aren't available, or no matching
+    visible window is currently open — callers should treat that as
+    "nothing to bring forward", not an error.
+
+    Matches against ANY pid among our automation processes (not just what
+    might be "the" main process) because Chromium's window-owning process
+    in a given launch isn't guaranteed to be the first one psutil happens
+    to return.
+    """
+    try:
+        import psutil  # noqa: F401  (imported for parity/availability check)
+        import win32gui
+        import win32process
+    except ImportError:
+        return None
+
+    procs = _automation_processes(engine)
+    if not procs:
+        return None
+    pids = {p.pid for p in procs}
+
+    found = []
+
+    def _callback(hwnd, _extra):
+        if not win32gui.IsWindowVisible(hwnd):
+            return
+        if not win32gui.GetWindowText(hwnd):
+            return
+        try:
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+        except Exception:
+            return
+        if pid in pids:
+            found.append(hwnd)
+
+    win32gui.EnumWindows(_callback, None)
+    return found[0] if found else None
+
+
 class ChromeSessionManager:
     """One shared, persistent, dedicated-automation-profile browser
     session for every tool that needs browser automation. Auto-detects
@@ -452,6 +495,62 @@ class ChromeSessionManager:
         keep running (or the user can close it by hand) and a later call
         will reattach to it via the debug port if it's still open."""
         self._driver = None
+
+    def bring_to_foreground(self) -> bool:
+        """v1.2.1 Bug 3 fix. Best-effort: bring the automation browser's
+        real OS-level window to the foreground.
+
+        Selenium's own tab switching (driver.switch_to.window(...)) only
+        changes which tab is active WITHIN the browser process — it has
+        NO effect on that window's actual on-screen z-order/visibility.
+        That's what made a second "play X" search appear to silently do
+        nothing: it really was running, just in a window that was never
+        actually brought in front of whatever the user was looking at.
+
+        Returns True if a foreground request was actually issued — NOT a
+        guarantee Windows honored it. Windows normally refuses
+        SetForegroundWindow from a background process; the
+        AttachThreadInput technique below is the standard mitigation for
+        that, but it still isn't 100% guaranteed on every Windows version/
+        focus-stealing-prevention setting. Caller should treat False, or a
+        True that doesn't visibly work, as "best effort didn't land" and
+        not fail the whole action over it.
+        """
+        if self._engine is None:
+            return False
+        try:
+            import win32api
+            import win32con
+            import win32gui
+            import win32process
+        except ImportError:
+            logger.warning("pywin32 not available — can't bring browser to foreground.")
+            return False
+
+        hwnd = _find_main_window_hwnd(self._engine)
+        if not hwnd:
+            return False
+
+        try:
+            if win32gui.IsIconic(hwnd):
+                win32gui.ShowWindow(hwnd, win32con.SW_RESTORE)
+
+            target_thread, _ = win32process.GetWindowThreadProcessId(hwnd)
+            current_thread = win32api.GetCurrentThreadId()
+            attached = False
+            if target_thread and target_thread != current_thread:
+                attached = win32process.AttachThreadInput(current_thread, target_thread, True)
+
+            try:
+                win32gui.SetForegroundWindow(hwnd)
+            finally:
+                if attached:
+                    win32process.AttachThreadInput(current_thread, target_thread, False)
+
+            return True
+        except Exception as exc:
+            logger.warning("Couldn't bring browser window to foreground: %s", exc)
+            return False
 
     # ── Internal ────────────────────────────────────────────────────────
 

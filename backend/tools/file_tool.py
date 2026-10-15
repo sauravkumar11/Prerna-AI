@@ -11,34 +11,85 @@ import os
 import shutil
 import subprocess
 from pathlib import Path
+from typing import List, Optional
 
 from agent.registry import ToolResult, action
 from config.settings import FOLDER_SHORTCUTS as _SHORTCUTS
 from config.settings import SCREENSHOT_DIR, CAMERA_CAPTURE_DIR
+from utils.windows_folders import get_special_folder, is_special_folder_name
 
 TOOL_DESCRIPTION = "Create, open, write to, or delete files and folders; jump to common folders."
 
-# Folders to search, in order, when a bare filename (no directory given)
-# doesn't exist where naively resolved. This is what actually fixes "open
-# the screenshot/photo I just took" — the planner/LLM often only has the
-# filename mentioned in a previous reply (by design — full paths aren't
-# read aloud/shown), not the app's real save directory, so a bare filename
-# resolved against the backend's working directory fails with WinError 2.
-_SEARCH_DIRS = [
-    SCREENSHOT_DIR,
-    CAMERA_CAPTURE_DIR,
-    Path.home() / "Pictures" / "Camera Roll",
-    Path.home() / "Pictures",
-    Path.home() / "Downloads",
-    Path.home() / "Documents",
-    Path.home() / "Desktop",
-]
+
+def _search_dirs() -> List[Path]:
+    """Folders to search, in order, when a bare filename (no directory given)
+    doesn't exist where naively resolved. This is what actually fixes "open
+    the screenshot/photo I just took" — the planner/LLM often only has the
+    filename mentioned in a previous reply (by design — full paths aren't
+    read aloud/shown), not the app's real save directory, so a bare filename
+    resolved against the backend's working directory fails with WinError 2.
+
+    Built lazily (not as a module-level constant) so the real Win32-resolved
+    special-folder paths (which can depend on OneDrive redirection) are used
+    rather than a value baked in at import time.
+    """
+    pictures = get_special_folder("pictures") or (Path.home() / "Pictures")
+    downloads = get_special_folder("downloads") or (Path.home() / "Downloads")
+    documents = get_special_folder("documents") or (Path.home() / "Documents")
+    desktop = get_special_folder("desktop") or (Path.home() / "Desktop")
+    return [
+        SCREENSHOT_DIR,
+        CAMERA_CAPTURE_DIR,
+        pictures / "Camera Roll",
+        pictures,
+        downloads,
+        documents,
+        desktop,
+    ]
+
+
+def _resolve_with_special_folders(path: str) -> Optional[Path]:
+    """
+    v1.2.1 Bug 1 fix. If `path`'s first segment is a recognized Windows
+    special-folder name or alias (e.g. "Desktop", "downloads"), resolve
+    that segment via the real Win32 API (utils.windows_folders) and join
+    whatever remains of the path onto it.
+
+    Returns None if the first segment isn't a recognized special folder —
+    callers fall through to ordinary path resolution in that case, so any
+    path not starting with a special-folder name/alias is completely
+    unaffected by this function existing.
+    """
+    raw = Path(path.strip())
+    parts = raw.parts
+    if not parts:
+        return None
+
+    first = parts[0]
+    if not is_special_folder_name(first):
+        return None
+
+    base = get_special_folder(first)
+    if base is None:
+        return None
+
+    remainder = parts[1:]
+    return base.joinpath(*remainder) if remainder else base
 
 
 def _safe_path(path: str) -> Path:
     """Resolve a path and make sure it isn't something obviously dangerous
-    like the root of a drive - a lightweight guardrail, not a sandbox."""
-    resolved = Path(path).expanduser().resolve()
+    like the root of a drive - a lightweight guardrail, not a sandbox.
+
+    Before v1.2.1 this did a plain Path(path).expanduser().resolve(), which
+    resolved relative paths against the backend process's working
+    directory - so "Desktop/saurav" created backend/Desktop/saurav instead
+    of the real Windows Desktop. Now, if the path's first segment names a
+    special folder, it's resolved via the real Win32 API first; every other
+    path resolves exactly as before.
+    """
+    special = _resolve_with_special_folders(path)
+    resolved = special.resolve() if special is not None else Path(path).expanduser().resolve()
     if resolved.parent == resolved:  # e.g. "C:\\" itself
         raise ValueError(f"Refusing to operate on a drive root: {resolved}")
     return resolved
@@ -64,7 +115,7 @@ def _resolve_existing(path: str) -> Path:
     if not name:
         return target
 
-    for directory in _SEARCH_DIRS:
+    for directory in _search_dirs():
         candidate = directory / name
         if candidate.exists():
             return candidate
@@ -121,9 +172,18 @@ def delete_path(path: str) -> ToolResult:
 @action("file", "open_shortcut", "Open a common folder (downloads, documents, desktop).", required_args=["name"])
 def open_shortcut(name: str) -> ToolResult:
     key = name.strip().lower()
-    if key not in _SHORTCUTS:
+
+    # Prefer the real Win32-resolved special folder when the name matches
+    # one (correctly handles OneDrive redirection); fall back to the
+    # config-defined shortcuts dict for anything else it already covers.
+    special = get_special_folder(key)
+    if special is not None:
+        folder = special
+    elif key in _SHORTCUTS:
+        folder = _SHORTCUTS[key]
+    else:
         return ToolResult(False, f"I don't have a shortcut for '{name}'.")
-    folder = _SHORTCUTS[key]
+
     subprocess.Popen(["explorer", str(folder)])
     return ToolResult(True, f"Opening {key.title()}.")
 

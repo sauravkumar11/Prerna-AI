@@ -16,6 +16,16 @@ quotes and strips newlines/control characters before the label ever
 reaches the command. Previously the label was interpolated raw, so a
 label containing a single quote could break out of the string and run
 arbitrary PowerShell (e.g. deleting files). Fixed here.
+
+v1.2.1 Bug 4 note: alarms set here are Prerna's OWN reminder popups (a
+scheduled task that shows a PowerShell MessageBox at the target time) —
+they deliberately do NOT use, and will never appear in, the native
+Windows Alarms & Clock app. Both `schtasks /create` and `schtasks /query`
+confirm the tasks genuinely exist and genuinely fire; this was never a
+false-success bug. It WAS, however, never communicated to the user, who
+reasonably checked the native Clock app and concluded alarms were broken
+when they didn't show up there. set_alarm/list_alarms' messages below say
+this explicitly now.
 """
 
 from __future__ import annotations
@@ -118,16 +128,28 @@ def set_alarm(time: str, label: str = "Alarm", recurring: bool = False) -> ToolR
         return ToolResult(False, f"Couldn't set the alarm: {result.stderr.strip() or 'unknown error'}")
 
     when = "every day" if recurring else "once"
-    return ToolResult(True, f"Alarm set for {hhmm} ({when}).", data={"task_name": task_name})
+    return ToolResult(
+        True,
+        f"Alarm set for {hhmm} ({when}) — I'll pop up a reminder here at that time. "
+        "Note: this is my own reminder (via Windows Task Scheduler), not the native "
+        "Windows Alarms app, so it won't show up if you check Clock.",
+        data={"task_name": task_name},
+    )
 
 
 @action("alarm", "list", "List all alarms Prerna has set.")
 def list_alarms() -> ToolResult:
     tasks = _list_alarm_tasks()
     if not tasks:
-        return ToolResult(True, "You don't have any alarms set.")
+        return ToolResult(True, "You don't have any alarms set with me.")
     times = ", ".join(t["time"] for t in tasks)
-    return ToolResult(True, f"You have {len(tasks)} alarm(s) set: {times}.", data={"alarms": tasks})
+    return ToolResult(
+        True,
+        f"You have {len(tasks)} alarm(s) set with me: {times}. "
+        "These are my own reminders (via Task Scheduler) — you won't see them in the "
+        "native Windows Alarms app.",
+        data={"alarms": tasks},
+    )
 
 
 @action(
@@ -167,6 +189,36 @@ def cancel_all_alarms() -> ToolResult:
     for t in tasks:
         subprocess.run(["schtasks", "/delete", "/tn", t["task_name"], "/f"], capture_output=True, timeout=10)
     return ToolResult(True, f"Cancelled {len(tasks)} alarm(s)." if tasks else "You don't have any alarms set.")
+
+
+# ── v1.2.1 Bug 4: a dedicated way to open the real Windows Alarms app ────
+#
+# Previously "open alarm"/"open clock" routed through system_tool.open_app,
+# which maps both "clock" and "alarms" to the generic `start ms-clock:`
+# URI — that opens the Clock app, but on whatever tab it last had open
+# (often Timer), not specifically Alarms. This uses the Alarms & Clock
+# app's AUMID directly, which is the best-known way to target a specific
+# tab in that app.
+#
+# CAVEAT (unconfirmed — verify on real Windows): Windows' AUMID launch
+# mechanism for this app is not well documented publicly for landing on a
+# specific tab; it's the best-known approach, not a guaranteed one. If it
+# still lands on the wrong tab, this needs revisiting with the real
+# behavior observed.
+_ALARMS_APP_AUMID = r"shell:appsFolder\Microsoft.WindowsAlarms_8wekyb3d8bbwe!App"
+
+
+@action("alarm", "open", "Open the native Windows Alarms & Clock app.")
+def open_alarms_app() -> ToolResult:
+    try:
+        subprocess.run(["explorer.exe", _ALARMS_APP_AUMID], timeout=10)
+    except Exception as exc:
+        return ToolResult(False, f"Couldn't open the Alarms app: {exc}")
+    return ToolResult(
+        True,
+        "Opened the Windows Alarms & Clock app. Note: alarms I set for you are separate "
+        "reminders and won't appear there — say 'list alarms' to see those.",
+    )
 
 
 @action(
