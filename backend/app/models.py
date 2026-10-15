@@ -13,7 +13,7 @@ v1.1.2 Enhancement: Added validation and type safety improvements.
 from __future__ import annotations
 
 from typing import List, Optional, Any, Dict
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class HistoryItem(BaseModel):
@@ -21,7 +21,8 @@ class HistoryItem(BaseModel):
     role: str = Field(..., min_length=1, max_length=20, description="Speaker role (user/assistant)")
     content: str = Field(..., min_length=1, max_length=50000, description="Message content")
 
-    @validator('role')
+    @field_validator("role")
+    @classmethod
     def validate_role(cls, v: str) -> str:
         """Validate role is either 'user' or 'assistant'"""
         if v.lower() not in ('user', 'assistant'):
@@ -43,14 +44,16 @@ class ChatRequest(BaseModel):
     # same tool action, several turns after the user already said yes.
     confirmed_step: Optional[Dict[str, Any]] = Field(None, description="Confirmed execution step")
 
-    @validator('message')
+    @field_validator("message")
+    @classmethod
     def message_not_empty(cls, v: str) -> str:
         """Ensure message is not just whitespace"""
         if not v.strip():
             raise ValueError("Message cannot be empty or whitespace only")
         return v.strip()
 
-    @validator('history')
+    @field_validator("history")
+    @classmethod
     def limit_history(cls, v: List[HistoryItem]) -> List[HistoryItem]:
         """Limit history to last 100 messages to prevent memory issues"""
         if len(v) > 100:
@@ -63,7 +66,8 @@ class TTSRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=10000, description="Text to speak")
     emotion: str = Field(default="CALM", description="Emotion tag for TTS")
 
-    @validator('emotion')
+    @field_validator("emotion")
+    @classmethod
     def validate_emotion(cls, v: str) -> str:
         """Validate emotion is a supported value"""
         valid_emotions = {
@@ -75,7 +79,8 @@ class TTSRequest(BaseModel):
             raise ValueError(f"Emotion must be one of {valid_emotions}, got '{v}'")
         return v_upper
 
-    @validator('message')
+    @field_validator("message")
+    @classmethod
     def message_not_empty(cls, v: str) -> str:
         """Ensure message is not just whitespace"""
         if not v.strip():
@@ -88,11 +93,11 @@ class ChatResponse(BaseModel):
     response: str = Field(..., description="Response text")
     requires_confirmation: bool = Field(default=False, description="Needs user confirmation")
 
-    class Config:
-        """Pydantic config for response"""
-        json_schema_extra = {
+    model_config = ConfigDict(
+        json_schema_extra={
             "example": {
                 "response": "Done",
-                "requires_confirmation": False
+                "requires_confirmation": False,
             }
         }
+    )

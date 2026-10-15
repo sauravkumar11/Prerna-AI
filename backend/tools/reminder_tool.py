@@ -29,7 +29,8 @@ from dataclasses import dataclass, asdict
 from enum import Enum
 
 from agent.registry import action, ToolResult, safe
-from config.settings import DATA_DIR
+from config.settings import MEMORY_DIR
+from utils.atomic_io import atomic_write_json
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -109,7 +110,7 @@ class ReminderManager:
 
     def __init__(self, storage_file: Optional[Path] = None):
         """Initialize reminder manager."""
-        self.storage_file = storage_file or (DATA_DIR / "reminders.json")
+        self.storage_file = storage_file or (MEMORY_DIR / "reminders.json")
         self.tasks: Dict[str, Task] = {}
         self.load_tasks()
 
@@ -132,10 +133,9 @@ class ReminderManager:
         """Save tasks to storage."""
         try:
             self.storage_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.storage_file, "w") as f:
-                data = {task_id: task.to_dict() for task_id, task in self.tasks.items()}
-                json.dump(data, f, indent=2, default=str)
-                logger.info(f"Saved {len(self.tasks)} tasks to storage")
+            data = {task_id: task.to_dict() for task_id, task in self.tasks.items()}
+            atomic_write_json(self.storage_file, data, indent=2, default=str)
+            logger.info(f"Saved {len(self.tasks)} tasks to storage")
         except Exception as e:
             logger.error(f"Failed to save tasks: {e}")
 

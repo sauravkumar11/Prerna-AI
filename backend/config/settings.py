@@ -20,17 +20,21 @@ _BACKEND_DIR = Path(__file__).parent.parent
 load_dotenv(dotenv_path=_BACKEND_DIR / ".env")
 
 # ── API keys ──────────────────────────────────────────────────────────────────
-# Collect every GEMINI_API_KEY* from .env regardless of ordering.
-# Supports: GEMINI_API_KEY, GEMINI_API_KEY_2, GEMINI_API_KEY_3 ... _7
-_all_key_candidates = [
-    os.getenv("GEMINI_API_KEY", ""),
-    os.getenv("GEMINI_API_KEY_2", ""),
-    os.getenv("GEMINI_API_KEY_3", ""),
-    os.getenv("GEMINI_API_KEY_4", ""),
-    os.getenv("GEMINI_API_KEY_5", ""),
-    os.getenv("GEMINI_API_KEY_6", ""),
-    os.getenv("GEMINI_API_KEY_7", ""),
-]
+# Single key is the secure default. Multi-key failover is optional.
+ENABLE_GEMINI_KEY_FAILOVER: bool = os.getenv("ENABLE_GEMINI_KEY_FAILOVER", "false").lower() == "true"
+
+_all_key_candidates = [os.getenv("GEMINI_API_KEY", "")]
+if ENABLE_GEMINI_KEY_FAILOVER:
+    _all_key_candidates.extend(
+        [
+            os.getenv("GEMINI_API_KEY_2", ""),
+            os.getenv("GEMINI_API_KEY_3", ""),
+            os.getenv("GEMINI_API_KEY_4", ""),
+            os.getenv("GEMINI_API_KEY_5", ""),
+            os.getenv("GEMINI_API_KEY_6", ""),
+            os.getenv("GEMINI_API_KEY_7", ""),
+        ]
+    )
 
 # Filter empty, deduplicate, preserve order
 _seen: set = set()
@@ -68,6 +72,7 @@ BACKEND_DIR: Path = _BACKEND_DIR
 MEMORY_DIR: Path = BACKEND_DIR / "memory"
 SCREENSHOT_DIR: Path = BACKEND_DIR / "screenshots"
 CAMERA_CAPTURE_DIR: Path = BACKEND_DIR / "captures"
+DATA_DIR: Path = MEMORY_DIR  # backward-compatible alias
 NOTES_FILE: Path = MEMORY_DIR / "notes.json"
 NOTEPAD_NOTES_DIR: Path = Path.home() / "Documents" / "Prerna Notes"
 

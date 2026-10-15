@@ -34,11 +34,16 @@ from __future__ import annotations
 
 import sys
 import types
+import os
 from pathlib import Path
 
 # So `import tools`, `import agent.goal_loop`, etc. work no matter what
 # directory `pytest` is invoked from.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Ensure settings import works during test collection without real secrets.
+os.environ.setdefault("PRERNA_ENV", "test")
+os.environ.setdefault("GEMINI_API_KEY", "test-key-xyz")
 
 
 def _stub_module(name: str, **attrs) -> None:
@@ -85,6 +90,18 @@ _stub_module(
 )
 _stub_module("win32con", WM_CLOSE=0x0010)
 _stub_module("win32process", GetWindowThreadProcessId=lambda hwnd: (0, 0))
+_stub_if_missing(
+    "cv2",
+    VideoCapture=lambda *_a, **_k: types.SimpleNamespace(
+        isOpened=lambda: False, read=lambda: (False, None), release=lambda: None
+    ),
+    imwrite=lambda *_a, **_k: True,
+)
+_stub_module("webdriver_manager")
+_stub_module(
+    "webdriver_manager.chrome",
+    ChromeDriverManager=type("ChromeDriverManager", (), {"install": staticmethod(lambda: "chromedriver")}),
+)
 
 # ── v1.1.1: fallback stubs for real (but possibly-not-installed-here) deps ──
 
@@ -195,7 +212,6 @@ from unittest.mock import MagicMock, patch, AsyncMock
 @pytest.fixture(autouse=True)
 def setup_test_env():
     """Set up test environment variables before each test."""
-    import os
     os.environ["PRERNA_ENV"] = "test"
     os.environ["GEMINI_API_KEY"] = "test-key-xyz"
     os.environ["LOG_LEVEL"] = "DEBUG"
@@ -228,14 +244,14 @@ def sample_tool_result():
 @pytest.fixture
 def mock_memory_manager():
     """Mock memory manager for tool testing."""
-    with patch("memory.memory_manager.MemoryManager") as mock_mem:
-        instance = MagicMock()
-        instance.add_conversation_turn = MagicMock()
-        instance.get_recent_context = MagicMock(return_value="")
-        instance.save_memory = MagicMock()
-        instance.load_memory = MagicMock(return_value={})
-        mock_mem.return_value = instance
-        yield instance
+    with patch("memory.memory_manager.add_conversation_turn") as add_turn, patch(
+        "memory.memory_manager.get_conversation_history", return_value=[]
+    ) as get_history, patch("memory.memory_manager.save_memory") as save_memory:
+        yield {
+            "add_conversation_turn": add_turn,
+            "get_conversation_history": get_history,
+            "save_memory": save_memory,
+        }
 
 
 @pytest.fixture

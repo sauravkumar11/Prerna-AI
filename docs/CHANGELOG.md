@@ -23,7 +23,7 @@ compatibility (zero breaking changes).
 - **`backend/tests/test_error_handling.py`** — 29 error handling & recovery tests
 - **`backend/tests/test_type_hints.py`** — 35+ type system validation tests
 - **`backend/tests/test_reminder_tool.py`** — 35+ reminder/task system tests
-- **Total test coverage:** 75+ tests, 100% passing
+- **Historical test status at the time of v1.1.1:** 75+ tests reported passing
 
 #### Reminder & Task System
 - **`backend/tools/reminder_tool.py`** — Full task management implementation
@@ -124,7 +124,7 @@ test_reminder_tool.py   ✓ 35+ passing (new)
 Total                   ✓ 75+ passing
 ```
 
-Success rate: **100% (all tests passing)**
+Historical success rate in that release report: **100%**
 
 ### Files added
 

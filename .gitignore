@@ -47,10 +47,19 @@ pnpm-debug.log*
 # ===========================
 # Runtime AI Memory
 # ===========================
+backend/screenshots/
+backend/captures/
+backend/screenshots/*.png
+backend/captures/*.png
 backend/memory/activity_log.json
 backend/memory/conversation_log.json
 backend/memory/memory.json
 backend/memory/mood_state.json
+backend/memory/notes.json
+backend/memory/reminders.json
+backend/memory/*.json
+backend/tests/pytest.log
+backend/coverage.xml
 
 # ==================================================
 # Vite

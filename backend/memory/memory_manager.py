@@ -31,6 +31,7 @@ from config.settings import (
     MAX_ACTIVITY_LOG_ENTRIES,
 )
 from utils.logger import get_logger
+from utils.atomic_io import atomic_write_json
 
 logger = get_logger(__name__)
 
@@ -80,8 +81,7 @@ def load_memory() -> Dict[str, Any]:
 
 def save_memory(memory: Dict[str, Any]) -> None:
     with _lock:
-        with open(MEMORY_FILE, "w", encoding="utf-8") as f:
-            json.dump(memory, f, indent=4, ensure_ascii=False)
+        atomic_write_json(MEMORY_FILE, memory, indent=4, ensure_ascii=False)
     _invalidate_cache()
 
 
@@ -162,8 +162,7 @@ def log_activity(action: str, success: Optional[bool] = None, details: str = "")
     logs = logs[-MAX_ACTIVITY_LOG_ENTRIES:]  # keep last N events
 
     with _lock:
-        with open(LOG_FILE, "w", encoding="utf-8") as f:
-            json.dump(logs, f, indent=2)
+        atomic_write_json(LOG_FILE, logs, indent=2, ensure_ascii=False)
 
 
 def get_recent_actions(n: int = 10) -> List[Dict[str, Any]]:
@@ -202,8 +201,7 @@ def add_conversation_turn(role: str, content: str) -> None:
     turns = turns[-MAX_CONVERSATION_TURNS:]  # keep last N turns
 
     with _lock:
-        with open(CONVERSATION_FILE, "w", encoding="utf-8") as f:
-            json.dump(turns, f, indent=2, ensure_ascii=False)
+        atomic_write_json(CONVERSATION_FILE, turns, indent=2, ensure_ascii=False)
 
 
 def get_conversation_history(n: int = 20) -> List[Dict[str, Any]]:

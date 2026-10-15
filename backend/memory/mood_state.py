@@ -40,6 +40,7 @@ import time
 from typing import Any, Dict, List, Optional
 
 from config.settings import MEMORY_DIR
+from utils.atomic_io import atomic_write_json
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -94,8 +95,7 @@ def _load() -> Dict[str, Any]:
 
 def _save(state: Dict[str, Any]) -> None:
     with _lock:
-        with open(MOOD_FILE, "w", encoding="utf-8") as f:
-            json.dump(state, f, indent=2, ensure_ascii=False)
+        atomic_write_json(MOOD_FILE, state, indent=2, ensure_ascii=False)
 
 
 def _decay_value(value: float, hours_elapsed: float, half_life_h: float, floor: float = 0.0) -> float:

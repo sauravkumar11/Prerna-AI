@@ -77,6 +77,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+from utils.atomic_io import atomic_write_json
 from utils.logger import get_logger
 
 logger = get_logger(__name__)
@@ -287,8 +288,7 @@ def _mark_profile_exit_clean(engine: dict) -> None:
                 continue
             profile_section["exit_type"] = "Normal"
             profile_section["exit_ok"] = True
-            with open(prefs_path, "w", encoding="utf-8") as f:
-                json.dump(prefs, f)
+            atomic_write_json(prefs_path, prefs, indent=None)
         except Exception as exc:
             logger.debug("Couldn't mark %s as cleanly exited (%s).", prefs_path, exc)
 
